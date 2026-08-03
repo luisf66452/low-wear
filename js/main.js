@@ -6,67 +6,13 @@
 
   /* ---------------- Shopify checkout integration ----------------
      Products checkout for real through Shopify (Storefront API) instead
-     of the site's local demo cart — see LWD.SHOPIFY_PRODUCTS (js/data.js)
-     for the id mapping, shared with admin.html and flash-offer.js. The
-     site's own size / version / personalization UI stays as-is — we just
-     send the choice to Shopify as cart line-item attributes and hand off
-     to Shopify's hosted checkout, since the Buy Button widget has no
-     field for a custom name/number. */
-  const SHOPIFY_DOMAIN = 'rbdfwr-dv.myshopify.com';
-  const SHOPIFY_STOREFRONT_TOKEN = 'e8db550bd1d8b8f84400bf90b6df3bf6';
-  const SHOPIFY_API_VERSION = '2024-01';
+     of the site's local demo cart. The API calls themselves live in
+     LWD.Shopify (js/data.js) so admin.html and flash-offer.js can reuse
+     them without loading this whole file. The site's own size / version /
+     personalization UI stays as-is — we just send the choice to Shopify as
+     cart line-item attributes and hand off to Shopify's hosted checkout,
+     since the Buy Button widget has no field for a custom name/number. */
   const SHOPIFY_PRODUCTS = LWD.SHOPIFY_PRODUCTS;
-
-  async function shopifyGraphQL(query, variables) {
-    const res = await fetch(`https://${SHOPIFY_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Shopify-Storefront-Access-Token': SHOPIFY_STOREFRONT_TOKEN },
-      body: JSON.stringify({ query, variables }),
-    });
-    return res.json();
-  }
-
-  async function fetchShopifyVariants(productId) {
-    const result = await shopifyGraphQL(
-      `query($id: ID!) { product(id: $id) { variants(first: 20) { edges { node {
-        id availableForSale selectedOptions { name value }
-      } } } } }`,
-      { id: `gid://shopify/Product/${productId}` }
-    );
-    return result?.data?.product?.variants?.edges.map((e) => e.node) || [];
-  }
-
-  function pickShopifyVariant(variants, size) {
-    if (!variants.length) return null;
-    if (variants.length === 1) return variants[0];
-    const match = variants.find((v) => v.selectedOptions.some((o) => o.value.toUpperCase() === String(size).toUpperCase()));
-    return match || variants[0];
-  }
-
-  async function createShopifyCheckout(variantId, attributes, discountCode) {
-    const input = { lines: [{ quantity: 1, merchandiseId: variantId, attributes }] };
-    if (discountCode) input.discountCodes = [discountCode];
-    const result = await shopifyGraphQL(
-      `mutation($input: CartInput!) { cartCreate(input: $input) {
-        cart { checkoutUrl }
-        userErrors { field message }
-      } }`,
-      { input }
-    );
-    const errors = result?.data?.cartCreate?.userErrors;
-    if (errors && errors.length) throw new Error(errors.map((e) => e.message).join(', '));
-    return result?.data?.cartCreate?.cart?.checkoutUrl || null;
-  }
-
-  // Exposed so js/flash-offer.js (a separate module) can send flash-offer
-  // redemptions through the same real Shopify checkout as regular purchases,
-  // instead of duplicating the Storefront API calls. The product-id mapping
-  // itself lives in LWD.SHOPIFY_PRODUCTS (js/data.js), shared by both.
-  window.LWShopify = {
-    fetchVariants: fetchShopifyVariants,
-    pickVariant: pickShopifyVariant,
-    createCheckout: createShopifyCheckout,
-  };
 
   /* ---------------- state ---------------- */
   const STORE_KEY_CART = 'lw_cart';
@@ -688,8 +634,8 @@
         btn.disabled = true;
         btn.textContent = 'A preparar…';
         try {
-          const variants = await fetchShopifyVariants(shopifyMap.shopifyProductId);
-          const variant = pickShopifyVariant(variants, item.size);
+          const variants = await LWD.Shopify.fetchVariants(shopifyMap.shopifyProductId);
+          const variant = LWD.Shopify.pickVariant(variants, item.size);
           if (!variant || !variant.availableForSale) {
             showToast('Este tamanho está esgotado.');
             return;
@@ -697,7 +643,7 @@
           const attributes = [{ key: 'Tamanho', value: item.size }];
           if (item.version) attributes.push({ key: 'Versão', value: item.version });
           if (item.custom) attributes.push({ key: 'Personalização', value: item.custom });
-          const checkoutUrl = await createShopifyCheckout(variant.id, attributes);
+          const checkoutUrl = await LWD.Shopify.createCheckout(variant.id, attributes);
           if (checkoutUrl) window.location.href = checkoutUrl;
           else showToast('Não foi possível iniciar o checkout. Tenta novamente.');
         } catch (err) {

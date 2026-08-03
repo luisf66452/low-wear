@@ -175,9 +175,9 @@
     return [jerseySVG(p.main, p.trim)];
   }
 
-  // Products checking out for real through Shopify (see js/main.js for the
-  // Storefront API calls). Shared here so admin.html and flash-offer.js can
-  // also know which products have a real checkout without loading main.js.
+  // Products checking out for real through Shopify. Shared here (rather than
+  // in js/main.js) so admin.html and js/flash-offer.js can also use it
+  // without loading the whole storefront script.
   const SHOPIFY_PRODUCTS = {
     'sel-principal-24': { shopifyProductId: '16381716201821' },
     'sel-especial-24': { shopifyProductId: '16381717447005' },
@@ -197,8 +197,92 @@
     'cru-alt-24': { shopifyProductId: '16381724328285' },
   };
 
+  /* ---------------- Shopify Storefront API ---------------- */
+  const SHOPIFY_DOMAIN = 'rbdfwr-dv.myshopify.com';
+  const SHOPIFY_STOREFRONT_TOKEN = 'e8db550bd1d8b8f84400bf90b6df3bf6';
+  const SHOPIFY_API_VERSION = '2024-01';
+
+  async function shopifyGraphQL(query, variables) {
+    const res = await fetch(`https://${SHOPIFY_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Shopify-Storefront-Access-Token': SHOPIFY_STOREFRONT_TOKEN },
+      body: JSON.stringify({ query, variables }),
+    });
+    return res.json();
+  }
+
+  async function fetchShopifyVariants(productId) {
+    const result = await shopifyGraphQL(
+      `query($id: ID!) { product(id: $id) { variants(first: 20) { edges { node {
+        id availableForSale selectedOptions { name value }
+      } } } } }`,
+      { id: `gid://shopify/Product/${productId}` }
+    );
+    return result?.data?.product?.variants?.edges.map((e) => e.node) || [];
+  }
+
+  function pickShopifyVariant(variants, size) {
+    if (!variants.length) return null;
+    if (variants.length === 1) return variants[0];
+    const match = variants.find((v) => v.selectedOptions.some((o) => o.value.toUpperCase() === String(size).toUpperCase()));
+    return match || variants[0];
+  }
+
+  async function createShopifyCheckout(variantId, attributes) {
+    // No discount code param: any discount comes from a Shopify *automatic*
+    // discount (Shopify Admin → Discounts → Automatic), which applies itself
+    // to eligible carts without needing a code passed here.
+    const result = await shopifyGraphQL(
+      `mutation($input: CartInput!) { cartCreate(input: $input) {
+        cart { checkoutUrl }
+        userErrors { field message }
+      } }`,
+      { input: { lines: [{ quantity: 1, merchandiseId: variantId, attributes }] } }
+    );
+    const errors = result?.data?.cartCreate?.userErrors;
+    if (errors && errors.length) throw new Error(errors.map((e) => e.message).join(', '));
+    return result?.data?.cartCreate?.cart?.checkoutUrl || null;
+  }
+
+  // Creates a throwaway cart for one unit of the variant to see whether
+  // Shopify applies an automatic discount to it, and if so, how much. Used
+  // by the Flash Offer engine to find a product that currently has a real
+  // discount configured in Shopify, and to read the real percentage back
+  // instead of guessing one client-side.
+  async function checkShopifyAutomaticDiscount(variantId) {
+    // Note: cart.cost.subtotalAmount is already computed *after* per-line
+    // (product-level) automatic discounts, so it equals totalAmount even
+    // when a discount applied — comparing those two would miss it. The
+    // undiscounted price only survives on the line's amountPerQuantity, so
+    // that's what has to be compared against the line's discounted total.
+    const result = await shopifyGraphQL(
+      `mutation($input: CartInput!) { cartCreate(input: $input) {
+        cart { lines(first: 1) { edges { node {
+          cost { totalAmount { amount } amountPerQuantity { amount } }
+        } } } }
+        userErrors { field message }
+      } }`,
+      { input: { lines: [{ quantity: 1, merchandiseId: variantId }] } }
+    );
+    const line = result?.data?.cartCreate?.cart?.lines?.edges?.[0]?.node;
+    if (!line) return { pct: 0 };
+    const undiscounted = parseFloat(line.cost.amountPerQuantity.amount);
+    const total = parseFloat(line.cost.totalAmount.amount);
+    if (!(undiscounted > 0) || !(total < undiscounted)) return { pct: 0 };
+    const pct = Math.round((1 - total / undiscounted) * 100);
+    return { pct };
+  }
+
+  const Shopify = {
+    PRODUCTS: SHOPIFY_PRODUCTS,
+    fetchVariants: fetchShopifyVariants,
+    pickVariant: pickShopifyVariant,
+    createCheckout: createShopifyCheckout,
+    checkAutomaticDiscount: checkShopifyAutomaticDiscount,
+  };
+
   window.LowWearData = {
-    TEAMS, PRODUCTS, TYPE_LABEL, FEATURED_IDS, SHOPIFY_PRODUCTS,
+    TEAMS, PRODUCTS, TYPE_LABEL, FEATURED_IDS, SHOPIFY_PRODUCTS, Shopify,
     euro, getTeam, getProduct, getProductsByTeam, fullName, jerseySVG, productMedia, productGallery,
   };
 })();

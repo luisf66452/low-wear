@@ -8,14 +8,14 @@
    rule are all real *for this browser*, but a campaign generated here
    isn't synced across different visitors/devices.
 
-   The discount itself is real: accepting sends the customer to Shopify's
-   real checkout (via js/main.js's window.LWShopify helpers) with a
-   Shopify discount code applied, so the price shown really is the price
-   charged. Because the Storefront API only accepts pre-existing discount
-   codes (it can't set an arbitrary custom price), the campaign picks its
-   percentage from a fixed set — FLASH_DISCOUNT_CODES below — and those
-   exact codes (percentage-off, no minimum) must exist in Shopify Admin
-   → Discounts for the checkout step to actually apply them.
+   The discount itself is real: the campaign only ever picks a product that
+   currently has a Shopify *automatic* discount configured for it (Shopify
+   Admin → Discounts → Automatic discount), and reads the actual percentage
+   back from Shopify instead of guessing one client-side. Accepting sends
+   the customer straight to Shopify's real checkout (via LWD.Shopify, see
+   js/data.js), where that same automatic discount applies itself — no
+   code needed. If no participating product currently has an automatic
+   discount active in Shopify, no campaign is shown at all.
    ============================================================ */
 (() => {
   const $ = (sel, ctx = document) => ctx.querySelector(sel);
@@ -30,11 +30,6 @@
   const KEY_TOTAL_REDEMPTIONS = 'lw_flash_total_redemptions';
   const SESSION_KEY_SHOWN = 'lw_flash_shown_session';
 
-  // Must match real discount codes created in Shopify Admin → Discounts
-  // (percentage off, no minimum purchase, one per value below).
-  const FLASH_DISCOUNT_CODES = { 10: 'FLASH10', 15: 'FLASH15', 20: 'FLASH20', 25: 'FLASH25', 30: 'FLASH30' };
-  const FLASH_DISCOUNT_STEPS = Object.keys(FLASH_DISCOUNT_CODES).map(Number);
-
   const DEFAULT_CONFIG = {
     minDiscount: 10,
     maxDiscount: 30,
@@ -47,12 +42,6 @@
   };
 
   const OFFER_MINUTES = 10;
-
-  function pickDiscountStep(minDiscount, maxDiscount) {
-    const inRange = FLASH_DISCOUNT_STEPS.filter((v) => v >= minDiscount && v <= maxDiscount);
-    const pool = inRange.length ? inRange : FLASH_DISCOUNT_STEPS;
-    return pool[Math.floor(Math.random() * pool.length)];
-  }
 
   const loadJSON = (key, fallback) => {
     try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
@@ -89,29 +78,57 @@
     return true;
   }
 
-  function generateCampaign(config, now) {
-    const eligible = getEligibleProducts(config);
-    if (!eligible.length) return null;
-    const product = eligible[Math.floor(Math.random() * eligible.length)];
-    const discountPct = pickDiscountStep(config.minDiscount, config.maxDiscount);
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // Checks each eligible product against Shopify for a real, currently-active
+  // automatic discount, and returns the first one found (preferring one whose
+  // percentage falls in the admin's configured min/max range). Returns null
+  // if none of the eligible products has an automatic discount right now.
+  async function findProductWithRealDiscount(config) {
+    const candidates = shuffle(getEligibleProducts(config));
+    let fallback = null;
+    for (const product of candidates) {
+      const shopifyEntry = LWD.SHOPIFY_PRODUCTS[product.id];
+      const variants = await LWD.Shopify.fetchVariants(shopifyEntry.shopifyProductId);
+      const variant = variants[0];
+      if (!variant) continue;
+      const { pct } = await LWD.Shopify.checkAutomaticDiscount(variant.id);
+      if (pct <= 0) continue;
+      if (pct >= config.minDiscount && pct <= config.maxDiscount) return { product, discountPct: pct };
+      if (!fallback) fallback = { product, discountPct: pct };
+    }
+    return fallback;
+  }
+
+  async function generateCampaign(config, now) {
+    const found = await findProductWithRealDiscount(config);
+    if (!found) return null;
     const campaign = {
       id: 'FLASH-' + now + '-' + Math.random().toString(36).slice(2, 6),
-      productId: product.id,
-      discountPct,
+      productId: found.product.id,
+      discountPct: found.discountPct,
       startedAt: now,
       endsAt: now + config.frequencyDays * 86400000,
     };
     save(KEY_CAMPAIGN, campaign);
     const log = loadLog();
-    log.push({ campaignId: campaign.id, productId: product.id, discountPct, periodStart: campaign.startedAt, periodEnd: campaign.endsAt, views: 0, clicks: 0, purchases: 0 });
+    log.push({ campaignId: campaign.id, productId: found.product.id, discountPct: found.discountPct, periodStart: campaign.startedAt, periodEnd: campaign.endsAt, views: 0, clicks: 0, purchases: 0 });
     save(KEY_LOG, log);
     return campaign;
   }
 
   // Returns the current live campaign, creating/rotating it as needed. Returns
   // null when no offer should run right now (outside program window, capped,
-  // or nothing eligible in stock).
-  function getOrCreateCampaign() {
+  // nothing eligible in stock, or no eligible product has a real Shopify
+  // automatic discount active).
+  async function getOrCreateCampaign() {
     const config = loadConfig();
     const now = Date.now();
     if (!withinProgramWindow(config, now)) return null;
@@ -250,10 +267,9 @@
 
   async function acceptOffer(campaign, product, size, state) {
     const shopifyEntry = LWD.SHOPIFY_PRODUCTS?.[product.id];
-    const code = FLASH_DISCOUNT_CODES[campaign.discountPct];
     const errorEl = $('#flash-checkout-error');
     const ctaBtn = $('#flash-cta');
-    if (!shopifyEntry || !window.LWShopify) {
+    if (!shopifyEntry) {
       if (errorEl) { errorEl.textContent = 'Esta oferta não está disponível para checkout de momento.'; errorEl.style.display = 'block'; }
       return;
     }
@@ -262,16 +278,15 @@
     ctaBtn.textContent = 'A preparar…';
     if (errorEl) errorEl.style.display = 'none';
     try {
-      const variants = await window.LWShopify.fetchVariants(shopifyEntry.shopifyProductId);
-      const variant = window.LWShopify.pickVariant(variants, size);
+      const variants = await LWD.Shopify.fetchVariants(shopifyEntry.shopifyProductId);
+      const variant = LWD.Shopify.pickVariant(variants, size);
       if (!variant || !variant.availableForSale) {
         if (errorEl) { errorEl.textContent = 'Este tamanho deixou de estar disponível.'; errorEl.style.display = 'block'; }
         return;
       }
-      const checkoutUrl = await window.LWShopify.createCheckout(
+      const checkoutUrl = await LWD.Shopify.createCheckout(
         variant.id,
-        [{ key: 'Tamanho', value: size }, { key: 'Oferta relâmpago', value: `-${campaign.discountPct}%` }],
-        code
+        [{ key: 'Tamanho', value: size }, { key: 'Oferta relâmpago', value: `-${campaign.discountPct}%` }]
       );
       if (!checkoutUrl) {
         if (errorEl) { errorEl.textContent = 'Não foi possível iniciar o checkout. Tenta novamente.'; errorEl.style.display = 'block'; }
@@ -291,12 +306,13 @@
   }
 
   /* ---------------- trigger scheduling ---------------- */
-  function maybeShowPopup() {
+  async function maybeShowPopup() {
     if (sessionStorage.getItem(SESSION_KEY_SHOWN)) return;
     if (anyBlockingOverlayOpen()) { setTimeout(maybeShowPopup, 3000); return; }
 
-    const campaign = getOrCreateCampaign();
+    const campaign = await getOrCreateCampaign();
     if (!campaign) return;
+    if (sessionStorage.getItem(SESSION_KEY_SHOWN)) return; // re-check: time passed awaiting Shopify
     const product = LWD.getProduct(campaign.productId);
     if (!product) return;
 

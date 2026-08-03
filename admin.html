@@ -39,13 +39,13 @@
     <div id="flash-admin-current"></div>
 
     <div class="flash-setup-note">
-      <strong>Antes de ativar:</strong> cria em Shopify Admin → Descontos 5 códigos de percentagem, sem valor mínimo de compra, com estes nomes exatos: <code>FLASH10</code>, <code>FLASH15</code>, <code>FLASH20</code>, <code>FLASH25</code>, <code>FLASH30</code> (10%, 15%, 20%, 25% e 30%, respetivamente). A oferta relâmpago só escolhe destes 5 valores — sem esses códigos criados, o desconto não é aplicado no checkout real.
+      <strong>Antes de ativar:</strong> em Shopify Admin → Descontos, cria um <strong>desconto automático</strong> (não um código) para cada produto que queiras incluir na oferta relâmpago, com a percentagem que quiseres, elegibilidade "Todos os clientes" e disponível na Loja Online. A oferta relâmpago escolhe automaticamente, entre os produtos participantes abaixo, um que tenha desconto automático ativo — e usa a percentagem real configurada na Shopify. Sem nenhum desconto automático ativo, a oferta não aparece.
     </div>
 
     <form id="flash-config-form" class="admin-flash-form">
       <div class="admin-flash-grid">
-        <div class="field"><label for="fc-min">Desconto mínimo (%)</label><input type="number" id="fc-min" min="10" max="30" step="5" required></div>
-        <div class="field"><label for="fc-max">Desconto máximo (%)</label><input type="number" id="fc-max" min="10" max="30" step="5" required></div>
+        <div class="field"><label for="fc-min">Desconto mínimo aceitável (%)</label><input type="number" id="fc-min" min="1" max="90" required></div>
+        <div class="field"><label for="fc-max">Desconto máximo aceitável (%)</label><input type="number" id="fc-max" min="1" max="90" required></div>
         <div class="field"><label for="fc-stock">Estoque mínimo (nº de tamanhos disponíveis)</label><input type="number" id="fc-stock" min="1" max="4" required></div>
         <div class="field"><label for="fc-freq">Frequência da campanha (dias)</label><input type="number" id="fc-freq" min="1" max="30" required></div>
         <div class="field"><label for="fc-start">Data de início (opcional)</label><input type="date" id="fc-start"></div>
@@ -73,7 +73,7 @@
   </section>
 </div>
 
-<script src="js/data.js?v=55"></script>
-<script src="js/admin.js?v=6"></script>
+<script src="js/data.js?v=57"></script>
+<script src="js/admin.js?v=7"></script>
 </body>
 </html>

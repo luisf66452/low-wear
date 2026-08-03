@@ -50,10 +50,6 @@
       startDate: null, endDate: null, frequencyDays: 3, maxRedemptions: 0,
     };
 
-    // Must match FLASH_DISCOUNT_CODES in js/flash-offer.js and the real
-    // discount codes created in Shopify Admin → Discounts.
-    const FLASH_DISCOUNT_STEPS = [10, 15, 20, 25, 30];
-
     const loadJSON = (key, fallback) => {
       try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
     };
@@ -68,26 +64,50 @@
       return pool.filter(p => p.availability !== 'esgotado' && p.sizes.length >= config.minStockSizes && shopifyProducts[p.id]);
     }
 
-    function pickDiscountStep(minDiscount, maxDiscount) {
-      const inRange = FLASH_DISCOUNT_STEPS.filter((v) => v >= minDiscount && v <= maxDiscount);
-      const pool = inRange.length ? inRange : FLASH_DISCOUNT_STEPS;
-      return pool[Math.floor(Math.random() * pool.length)];
+    function shuffle(arr) {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
     }
 
-    function forceNewCampaign() {
+    // Same real-discount lookup as js/flash-offer.js: only picks a product
+    // that currently has a Shopify automatic discount active.
+    async function findProductWithRealDiscount(config) {
+      const candidates = shuffle(getEligibleProducts(config));
+      let fallback = null;
+      for (const product of candidates) {
+        const shopifyEntry = LWD.SHOPIFY_PRODUCTS[product.id];
+        const variants = await LWD.Shopify.fetchVariants(shopifyEntry.shopifyProductId);
+        const variant = variants[0];
+        if (!variant) continue;
+        const { pct } = await LWD.Shopify.checkAutomaticDiscount(variant.id);
+        if (pct <= 0) continue;
+        if (pct >= config.minDiscount && pct <= config.maxDiscount) return { product, discountPct: pct };
+        if (!fallback) fallback = { product, discountPct: pct };
+      }
+      return fallback;
+    }
+
+    async function forceNewCampaign() {
       const config = loadConfig();
-      const eligible = getEligibleProducts(config);
-      if (!eligible.length) {
+      if (!getEligibleProducts(config).length) {
         currentBox.innerHTML = '<div class="flash-current-card">Nenhum produto elegível (verifica o estoque mínimo, a lista de produtos participantes, e se os produtos já estão ligados à Shopify).</div>';
         return;
       }
+      currentBox.innerHTML = '<div class="flash-current-card">A verificar descontos automáticos ativos na Shopify…</div>';
+      const found = await findProductWithRealDiscount(config);
+      if (!found) {
+        currentBox.innerHTML = '<div class="flash-current-card">Nenhum produto elegível tem atualmente um desconto automático ativo na Shopify. Cria um em Shopify Admin → Descontos → Desconto automático.</div>';
+        return;
+      }
       const now = Date.now();
-      const product = eligible[Math.floor(Math.random() * eligible.length)];
-      const discountPct = pickDiscountStep(config.minDiscount, config.maxDiscount);
-      const campaign = { id: 'FLASH-' + now + '-' + Math.random().toString(36).slice(2, 6), productId: product.id, discountPct, startedAt: now, endsAt: now + config.frequencyDays * 86400000 };
+      const campaign = { id: 'FLASH-' + now + '-' + Math.random().toString(36).slice(2, 6), productId: found.product.id, discountPct: found.discountPct, startedAt: now, endsAt: now + config.frequencyDays * 86400000 };
       save(KEY_CAMPAIGN, campaign);
       const log = loadJSON(KEY_LOG, []);
-      log.push({ campaignId: campaign.id, productId: product.id, discountPct, periodStart: campaign.startedAt, periodEnd: campaign.endsAt, views: 0, clicks: 0, purchases: 0 });
+      log.push({ campaignId: campaign.id, productId: found.product.id, discountPct: found.discountPct, periodStart: campaign.startedAt, periodEnd: campaign.endsAt, views: 0, clicks: 0, purchases: 0 });
       save(KEY_LOG, log);
     }
 
@@ -179,8 +199,8 @@
       renderCurrentCampaign();
     });
 
-    $('#flash-force-new')?.addEventListener('click', () => {
-      forceNewCampaign();
+    $('#flash-force-new')?.addEventListener('click', async () => {
+      await forceNewCampaign();
       renderCurrentCampaign();
       renderLog();
     });
