@@ -640,11 +640,6 @@ body.no-hero .site-header{
   background:linear-gradient(160deg,#161711,#0b0c0a); pointer-events:none;
 }
 .about-video-card.has-error .about-video-fallback{ display:flex; }
-.about-video-tag{
-  position:absolute; left:12px; top:12px; padding:4px 10px; border-radius:999px;
-  background:var(--accent); color:var(--accent-ink); font-family:var(--font-mono);
-  font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; font-weight:700;
-}
 .about-video-mute{
   position:absolute; right:12px; bottom:12px; width:34px; height:34px; border-radius:50%;
   background:rgba(11,12,10,.6); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center;
