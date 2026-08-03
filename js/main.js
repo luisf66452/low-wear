@@ -51,9 +51,39 @@
           moneyFormat: '%E2%82%AC%7B%7Bamount_with_comma_separator%7D%7D',
           options: {
             product: {
-              styles: { product: { '@media (min-width: 601px)': { 'max-width': '100%', 'margin-left': '0', 'margin-bottom': '0' } } },
+              styles: {
+                product: { '@media (min-width: 601px)': { 'max-width': '100%', 'margin-left': '0', 'margin-bottom': '0' } },
+                button: {
+                  'background-color': '#49e08a', color: '#072016', 'font-family': "'Space Mono', 'Courier New', monospace",
+                  'font-size': '13.5px', 'text-transform': 'uppercase', 'letter-spacing': '.03em',
+                  'border-radius': '3px', padding: '13px 20px', ':hover': { 'background-color': '#3fc978' },
+                  ':focus': { 'background-color': '#3fc978' },
+                },
+                select: {
+                  'background-color': '#121310', color: '#f4f3ec',
+                  border: '1px solid rgba(244,243,236,.22)', 'border-radius': '3px',
+                  padding: '12px 13px', 'font-size': '13.5px', ':focus': { 'border-color': '#49e08a' },
+                },
+                label: {
+                  color: '#82827a', 'font-family': "'Space Mono', 'Courier New', monospace",
+                  'font-size': '10.5px', 'text-transform': 'uppercase', 'letter-spacing': '.05em',
+                },
+              },
               text: { button: 'Adicionar ao carrinho' },
               contents: { img: false, title: false, price: false },
+            },
+            option: {
+              styles: {
+                label: {
+                  color: '#82827a', 'font-family': "'Space Mono', 'Courier New', monospace",
+                  'font-size': '10.5px', 'text-transform': 'uppercase', 'letter-spacing': '.05em',
+                },
+                select: {
+                  'background-color': '#121310', color: '#f4f3ec',
+                  border: '1px solid rgba(244,243,236,.22)', 'border-radius': '3px',
+                  padding: '12px 13px', 'font-size': '13.5px', ':focus': { 'border-color': '#49e08a' },
+                },
+              },
             },
             modalProduct: {
               contents: { img: false, imgWithCarousel: true, button: false, buttonWithQuantity: true },
