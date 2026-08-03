@@ -113,7 +113,7 @@
         spin: Array.from({length: 24}, (_, i) => `img/spin/palmeiras-retro-360/${String(i + 1).padStart(2, '0')}.png`) }),
 
     // Santos
-    P('santos-principal-24', 'santos', 'principal', 'Peixe Classico', '2024', 89.90, ['S','M','L','XL'], 'Novo', 'disponivel', '#f4f3ec', '#121212',
+    P('santos-principal-24', 'santos', 'principal', 'Peixe Classico', '2024', 89.90, ['S','M','L'], 'Novo', 'disponivel', '#f4f3ec', '#121212',
       { photos: ['img/spin/santos-principal/01.png'],
         spin: Array.from({length: 24}, (_, i) => `img/spin/santos-principal/${String(i + 1).padStart(2, '0')}.png`) }),
     P('santos-extra-24', 'santos', 'extra', 'Peixe Diferenciado', '2024', 79.90, ['S','M','L','XL'], null, 'disponivel', '#121212', '#f4f3ec',
