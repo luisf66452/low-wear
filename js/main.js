@@ -420,13 +420,28 @@
     document.querySelector('#mais-procuradas')?.scrollIntoView({ behavior: 'smooth' });
   }));
 
-  /* ---------------- newsletter ---------------- */
-  $('#newsletter-form')?.addEventListener('submit', (e) => {
+  /* ---------------- newsletter ----------------
+     Signs the email up for real via LWD.Shopify.newsletterSignup (creates a
+     Shopify customer with marketing consent — visible in Shopify Admin →
+     Customers), instead of just showing a toast and discarding it. */
+  $('#newsletter-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const input = $('#newsletter-email');
-    if (input.value.trim()) {
+    const btn = e.target.querySelector('button[type="submit"]');
+    const email = input.value.trim();
+    if (!email) return;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'A inscrever…';
+    try {
+      await LWD.Shopify.newsletterSignup(email);
       showToast('Inscrição confirmada. Bem-vindo à bancada.');
       input.value = '';
+    } catch (err) {
+      showToast('Não foi possível concluir a inscrição. Tenta novamente.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalText;
     }
   });
 

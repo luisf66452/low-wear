@@ -273,12 +273,35 @@
     return { pct };
   }
 
+  // Signs an email up for marketing consent as a real Shopify customer (the
+  // newsletter list you see in Shopify Admin → Customers), instead of just
+  // showing a success toast and throwing the address away. customerCreate
+  // requires a password even for a "just subscribe" signup, so we generate
+  // a random one the visitor never sees — they can set their own later via
+  // "forgot password" if they ever want to log in to an account.
+  async function shopifyNewsletterSignup(email) {
+    const randomPassword = Array.from(crypto.getRandomValues(new Uint8Array(18)))
+      .map((b) => b.toString(36)).join('').slice(0, 24) + 'Aa1!';
+    const result = await shopifyGraphQL(
+      `mutation($input: CustomerCreateInput!) { customerCreate(input: $input) {
+        customer { id }
+        customerUserErrors { field message code }
+      } }`,
+      { input: { email, password: randomPassword, acceptsMarketing: true } }
+    );
+    const errors = result?.data?.customerCreate?.customerUserErrors || [];
+    const alreadySubscribed = errors.some((e) => e.code === 'TAKEN');
+    if (errors.length && !alreadySubscribed) throw new Error(errors.map((e) => e.message).join(', '));
+    return true;
+  }
+
   const Shopify = {
     PRODUCTS: SHOPIFY_PRODUCTS,
     fetchVariants: fetchShopifyVariants,
     pickVariant: pickShopifyVariant,
     createCheckout: createShopifyCheckout,
     checkAutomaticDiscount: checkShopifyAutomaticDiscount,
+    newsletterSignup: shopifyNewsletterSignup,
   };
 
   window.LowWearData = {
