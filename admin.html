@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Low Wear — Painel administrativo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=28">
+</head>
+<body data-page="admin" style="background:var(--bg);min-height:100vh;">
+
+<div class="container admin-lock-wrap" id="admin-lock-wrap">
+  <div class="admin-head">
+    <a href="index.html" class="logo">LOW<span class="dot">·</span>WEAR</a>
+    <h1>Painel administrativo</h1>
+    <p class="admin-sub">Acesso restrito. Introduz a palavra-passe para continuar.</p>
+  </div>
+  <form id="admin-lock-form" class="admin-lock-form">
+    <div class="field"><label for="admin-lock-pass">Palavra-passe</label><input type="password" id="admin-lock-pass" autocomplete="current-password" autofocus></div>
+    <button class="btn btn-primary btn-block" type="submit">Entrar</button>
+    <p class="admin-lock-error" id="admin-lock-error" style="display:none;">Palavra-passe incorreta.</p>
+  </form>
+</div>
+
+<div class="container admin-wrap" id="admin-wrap" hidden>
+  <div class="admin-head">
+    <a href="index.html" class="logo">LOW<span class="dot">·</span>WEAR</a>
+    <h1>Painel administrativo</h1>
+    <p class="admin-sub">Página oculta — não está ligada a partir do site. Todos os estados aqui ficam guardados neste navegador (sem base de dados partilhada).</p>
+  </div>
+
+  <div class="admin-tabs" role="tablist">
+    <button class="admin-tab is-active" type="button" role="tab" aria-selected="true" data-tab="orders">Encomendas</button>
+    <button class="admin-tab" type="button" role="tab" aria-selected="false" data-tab="flash">Oferta relâmpago surpresa</button>
+  </div>
+
+  <section class="admin-section admin-panel" id="admin-panel-orders">
+    <p class="admin-sub">Usa isto para atualizar manualmente o estado de entrega de cada encomenda.</p>
+    <form id="admin-search-form" class="admin-search">
+      <div class="field"><label for="admin-order-num">Número da encomenda</label><input type="text" id="admin-order-num" placeholder="LW-000000" autocomplete="off"></div>
+      <button class="btn btn-primary" type="submit">Procurar</button>
+    </form>
+    <div id="admin-result"></div>
+    <div class="admin-list-head">
+      <h3>Todas as encomendas deste navegador</h3>
+    </div>
+    <div id="admin-order-list"></div>
+  </section>
+
+  <section class="admin-section admin-panel" id="admin-panel-flash" hidden>
+    <p class="admin-sub">Configura a campanha e acompanha o desempenho de cada oferta gerada.</p>
+
+    <div id="flash-admin-current"></div>
+
+    <form id="flash-config-form" class="admin-flash-form">
+      <div class="admin-flash-grid">
+        <div class="field"><label for="fc-min">Desconto mínimo (%)</label><input type="number" id="fc-min" min="1" max="90" required></div>
+        <div class="field"><label for="fc-max">Desconto máximo (%)</label><input type="number" id="fc-max" min="1" max="90" required></div>
+        <div class="field"><label for="fc-stock">Estoque mínimo (nº de tamanhos disponíveis)</label><input type="number" id="fc-stock" min="1" max="4" required></div>
+        <div class="field"><label for="fc-freq">Frequência da campanha (dias)</label><input type="number" id="fc-freq" min="1" max="30" required></div>
+        <div class="field"><label for="fc-start">Data de início (opcional)</label><input type="date" id="fc-start"></div>
+        <div class="field"><label for="fc-end">Data de término (opcional)</label><input type="date" id="fc-end"></div>
+        <div class="field"><label for="fc-max-red">Nº máximo de ofertas utilizadas (0 = sem limite)</label><input type="number" id="fc-max-red" min="0"></div>
+      </div>
+
+      <div class="field">
+        <label>Produtos participantes (nenhum selecionado = todos os produtos em estoque)</label>
+        <div class="admin-product-list" id="flash-product-list"></div>
+      </div>
+
+      <div class="admin-flash-actions">
+        <button class="btn btn-primary" type="submit">Guardar configuração</button>
+        <button class="btn btn-ghost" type="button" id="flash-force-new">Forçar nova oferta agora</button>
+        <button class="btn btn-ghost" type="button" id="flash-reset-redemptions">Repor contagem de utilizações</button>
+      </div>
+    </form>
+
+    <div class="admin-list-head">
+      <h3>Histórico e desempenho das campanhas</h3>
+    </div>
+    <div id="flash-admin-log"></div>
+  </section>
+</div>
+
+<script src="js/data.js?v=52"></script>
+<script src="js/admin.js?v=4"></script>
+</body>
+</html>
