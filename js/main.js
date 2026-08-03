@@ -158,7 +158,6 @@
   $$('.js-search-toggle').forEach(b => b.addEventListener('click', () => { openOverlay(searchPanel); setTimeout(() => $('#search-input')?.focus(), 100); }));
   $('#account-toggle')?.addEventListener('click', () => openOverlay($('#login-modal')));
   $('#footer-account')?.addEventListener('click', (e) => { e.preventDefault(); openOverlay($('#login-modal')); });
-  $('#footer-track')?.addEventListener('click', (e) => { e.preventDefault(); openOverlay($('#track-modal')); });
   $('#footer-privacy')?.addEventListener('click', (e) => { e.preventDefault(); openOverlay($('#privacy-modal')); });
   $('#footer-terms')?.addEventListener('click', (e) => { e.preventDefault(); openOverlay($('#terms-modal')); });
   $('#footer-exchange')?.addEventListener('click', (e) => { e.preventDefault(); openOverlay($('#exchange-modal')); });
@@ -496,175 +495,11 @@
     e.preventDefault(); closeAllOverlays(); showToast('Sessão iniciada com sucesso');
   }));
 
-  /* ---------------- order tracking ---------------- */
-  const STORE_KEY_ORDERS = 'lw_orders';
-  let orders = loadJSON(STORE_KEY_ORDERS, []);
-  const saveOrders = () => localStorage.setItem(STORE_KEY_ORDERS, JSON.stringify(orders));
-
-  const TRACK_ICONS = {
-    box:   '<svg viewBox="0 0 24 24"><path d="M3 7 12 3l9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>',
-    shirt: '<svg viewBox="0 0 24 24"><path d="M8 4 4 7l2 3 2-1v10h8V9l2 1 2-3-4-3-2 2h-4L8 4Z"/></svg>',
-    van:   '<svg viewBox="0 0 24 24"><path d="M3 7h11v8H3z"/><path d="M14 10h4l3 3v2h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>',
-    plane: '<svg viewBox="0 0 24 24"><path d="m3 11 18-8-8 18-2-8-8-2Z"/></svg>',
-    home:  '<svg viewBox="0 0 24 24"><path d="M4 11 12 4l8 7"/><path d="M6 10v9h12v-9"/><path d="m9.5 14.5 2 2 4-4"/></svg>',
-  };
-
-  const TRACK_STEPS = [
-    { key:'confirmed', label:'Pedido confirmado', icon:'box', location:'Low Wear — centro de preparação', desc:'Recebemos o teu pedido e o pagamento foi confirmado.' },
-    { key:'preparing', label:'Em preparação', icon:'shirt', location:'Low Wear — centro de preparação', desc:'A tua camisola está a ser preparada com todo o cuidado.' },
-    { key:'carrier', label:'A caminho da transportadora', icon:'van', location:'Centro de triagem, Portugal', desc:'A encomenda foi entregue à transportadora.' },
-    { key:'international', label:'Transporte internacional', icon:'plane', location:'Em trânsito internacional', desc:'A tua camisa está a viajar até ao destino.' },
-    { key:'out', label:'Saiu para entrega', icon:'van', location:'Centro de distribuição local', desc:'A tua camisola está a caminho da tua morada.' },
-    { key:'delivered', label:'Entregue', icon:'home', location:'Entregue na morada de destino', desc:'A tua encomenda chegou! Esperamos que representes o teu time com orgulho. 💚' },
-  ];
-
-  function createOrder(name, email) {
-    const id = 'LW-' + Math.floor(100000 + Math.random() * 900000);
-    const trackingCode = 'LWBR' + Math.random().toString(36).slice(2, 10).toUpperCase();
-    const carrier = ['CTT Expresso', 'DPD', 'GLS'][Math.floor(Math.random() * 3)];
-    const items = cart.map(i => ({ id: i.id, name: i.name, size: i.size, qty: i.qty, price: i.price, media: i.media }));
-    const order = {
-      id, name, email: email.trim().toLowerCase(), trackingCode, carrier, items,
-      total: cart.reduce((s, i) => s + i.price * i.qty, 0),
-      createdAt: Date.now(),
-      // statusIndex is set manually (by the store) as the order actually progresses —
-      // see admin.html. It does not advance automatically.
-      statusIndex: 0,
-      stepTimestamps: { [TRACK_STEPS[0].key]: Date.now() },
-    };
-    orders.push(order);
-    saveOrders();
-    return order;
-  }
-
-  function getOrderStatus(order) {
-    const idx = order.statusIndex ?? 0;
-    const timestamps = order.stepTimestamps || {};
-    const steps = TRACK_STEPS.map((s, i) => ({
-      ...s,
-      state: i < idx ? 'done' : i === idx ? 'current' : 'pending',
-      timestamp: timestamps[s.key] || null,
-    }));
-    return { currentIndex: idx, steps, isDelivered: idx === TRACK_STEPS.length - 1 };
-  }
-
-  function fmtDateTime(ts) {
-    if (!ts) return '—';
-    return new Date(ts).toLocaleString('pt-PT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-  }
-  function renderTrackResult(order) {
-    const status = getOrderStatus(order);
-    const current = status.steps[status.currentIndex];
-    const view = $('#track-result-view');
-    if (!view) return;
-
-    view.innerHTML = `
-      <div class="track-head">
-        <div>
-          <span class="track-order-id">${order.id}</span>
-          <h3>Acompanhamento da encomenda</h3>
-        </div>
-        <button class="btn btn-ghost btn-sm" id="track-back">Nova pesquisa</button>
-      </div>
-
-      <div class="track-demo-flag">
-        <svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
-        Estado atualizado manualmente pela equipa Low Wear — ainda sem integração automática com a transportadora.
-      </div>
-
-      <div class="track-progress">
-        ${status.steps.map(s => `
-          <div class="track-step is-${s.state}">
-            <div class="track-step-icon">${TRACK_ICONS[s.icon]}</div>
-            <div class="track-step-label">${s.label}</div>
-          </div>`).join('')}
-      </div>
-
-      <div class="track-detail-card${status.isDelivered ? ' is-delivered' : ''}">
-        <div class="track-detail-icon">${TRACK_ICONS[current.icon]}</div>
-        <div>
-          <h4>${current.label}</h4>
-          <p class="track-detail-desc">${current.desc}</p>
-          <div class="track-detail-meta">
-            <span>${fmtDateTime(current.timestamp)}</span>
-            <span>${current.location}</span>
-          </div>
-        </div>
-      </div>
-
-      ${status.isDelivered ? `<div class="track-delivered-msg">A tua encomenda chegou! Esperamos que representes o teu time com orgulho. 💚</div>` : ''}
-
-      <div class="track-order-summary">
-        <div class="track-items">
-          ${order.items.map(i => `
-            <div class="track-item">
-              <div class="track-item-media">${i.media || ''}</div>
-              <div>
-                <div class="track-item-name">${i.name}</div>
-                <div class="track-item-meta">Tam. ${i.size} · Qtd ${i.qty}</div>
-              </div>
-            </div>`).join('') || '<p class="track-item-meta">Sem artigos associados a esta encomenda.</p>'}
-        </div>
-        <div class="track-codes">
-          <div class="track-code-row"><span>Transportadora</span><strong>${order.carrier}</strong></div>
-          <div class="track-code-row">
-            <span>Código de rastreamento</span><strong>${order.trackingCode}</strong>
-            <button class="btn btn-ghost btn-sm" id="track-copy" type="button" data-code="${order.trackingCode}">Copiar código</button>
-          </div>
-        </div>
-        <div class="track-actions">
-          <button class="btn btn-ghost" id="track-details" type="button">Ver detalhes da encomenda</button>
-          <a class="btn btn-ghost" href="mailto:almeidaferreiraluisgustavo@gmail.com?subject=Apoio%20-%20Encomenda%20${order.id}">Contactar apoio</a>
-        </div>
-        <div class="track-details-box" id="track-details-box" style="display:none;">
-          <div><span>Nome</span><strong>${order.name || '—'}</strong></div>
-          <div><span>E-mail</span><strong>${order.email}</strong></div>
-          <div><span>Data da encomenda</span><strong>${fmtDateTime(order.createdAt)}</strong></div>
-          <div><span>Total</span><strong>${euro(order.total)}</strong></div>
-        </div>
-        <p class="track-note">Algumas atualizações podem demorar algumas horas a aparecer.</p>
-      </div>`;
-
-    $('#track-form-view').style.display = 'none';
-    view.style.display = 'block';
-
-    $('#track-back')?.addEventListener('click', () => {
-      view.style.display = 'none';
-      view.innerHTML = '';
-      $('#track-form-view').style.display = 'block';
-    });
-    $('#track-copy')?.addEventListener('click', (e) => {
-      const code = e.currentTarget.dataset.code;
-      navigator.clipboard?.writeText(code).then(() => showToast('Código copiado')).catch(() => {});
-    });
-    $('#track-details')?.addEventListener('click', (e) => {
-      const box = $('#track-details-box');
-      const open = box.style.display !== 'none';
-      box.style.display = open ? 'none' : 'block';
-      e.currentTarget.textContent = open ? 'Ver detalhes da encomenda' : 'Ocultar detalhes';
-    });
-  }
-
-  $('#track-toggle')?.addEventListener('click', () => openOverlay($('#track-modal')));
-  $('#track-form')?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const num = $('#tr-num').value.trim().toUpperCase();
-    const email = $('#tr-email').value.trim().toLowerCase();
-    const errorEl = $('#track-error');
-    orders = loadJSON(STORE_KEY_ORDERS, []); // re-read in case an admin updated the status meanwhile
-    const order = orders.find(o => o.id.toUpperCase() === num && o.email === email);
-    if (!order) {
-      if (errorEl) {
-        errorEl.style.display = 'block';
-        errorEl.textContent = 'Não encontrámos nenhuma encomenda com esses dados. Verifica o número e o e-mail utilizados na compra.';
-      }
-      return;
-    }
-    if (errorEl) errorEl.style.display = 'none';
-    renderTrackResult(order);
-  });
-
-  /* ---------------- checkout (demo) ---------------- */
+  /* ---------------- checkout (local cart fallback) ----------------
+     Every catalog product now checks out for real through Shopify
+     (see goToShopifyCheckout below), so this local cart only ever fills
+     up from the Flash Offer popup or a future product not yet linked
+     to Shopify. It has no order tracking — it just confirms and clears. */
   $('#checkout-btn')?.addEventListener('click', (e) => {
     e.preventDefault();
     if (cart.length === 0) { showToast('O seu carrinho está vazio'); return; }
@@ -672,21 +507,12 @@
   });
   $('#checkout-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const name = $('#co-name').value.trim();
-    const email = $('#co-email').value.trim();
-    const order = createOrder(name, email);
     window.dispatchEvent(new CustomEvent('lw:checkout-complete', { detail: { items: cart } }));
     cart = [];
     saveCart();
     renderCart();
     closeAllOverlays();
-    showToast(`Encomenda ${order.id} confirmada!`);
-    setTimeout(() => {
-      openOverlay($('#track-modal'));
-      $('#tr-num').value = order.id;
-      $('#tr-email').value = order.email;
-      renderTrackResult(order);
-    }, 400);
+    showToast('Obrigado! Vamos entrar em contacto brevemente.');
   });
 
   /* ---------------- size guide ---------------- */

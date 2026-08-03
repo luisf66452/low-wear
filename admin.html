@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=28">
+<link rel="stylesheet" href="css/style.css?v=29">
 </head>
 <body data-page="admin" style="background:var(--bg);min-height:100vh;">
 
@@ -29,28 +29,11 @@
   <div class="admin-head">
     <a href="index.html" class="logo">LOW<span class="dot">·</span>WEAR</a>
     <h1>Painel administrativo</h1>
-    <p class="admin-sub">Página oculta — não está ligada a partir do site. Todos os estados aqui ficam guardados neste navegador (sem base de dados partilhada).</p>
+    <p class="admin-sub">Página oculta — não está ligada a partir do site. As encomendas reais geram-se agora na Shopify (Shopify Admin → Encomendas); este painel serve só para a Oferta Relâmpago Surpresa.</p>
   </div>
 
-  <div class="admin-tabs" role="tablist">
-    <button class="admin-tab is-active" type="button" role="tab" aria-selected="true" data-tab="orders">Encomendas</button>
-    <button class="admin-tab" type="button" role="tab" aria-selected="false" data-tab="flash">Oferta relâmpago surpresa</button>
-  </div>
-
-  <section class="admin-section admin-panel" id="admin-panel-orders">
-    <p class="admin-sub">Usa isto para atualizar manualmente o estado de entrega de cada encomenda.</p>
-    <form id="admin-search-form" class="admin-search">
-      <div class="field"><label for="admin-order-num">Número da encomenda</label><input type="text" id="admin-order-num" placeholder="LW-000000" autocomplete="off"></div>
-      <button class="btn btn-primary" type="submit">Procurar</button>
-    </form>
-    <div id="admin-result"></div>
-    <div class="admin-list-head">
-      <h3>Todas as encomendas deste navegador</h3>
-    </div>
-    <div id="admin-order-list"></div>
-  </section>
-
-  <section class="admin-section admin-panel" id="admin-panel-flash" hidden>
+  <section class="admin-section admin-panel" id="admin-panel-flash">
+    <h2>Oferta relâmpago surpresa</h2>
     <p class="admin-sub">Configura a campanha e acompanha o desempenho de cada oferta gerada.</p>
 
     <div id="flash-admin-current"></div>
@@ -86,6 +69,6 @@
 </div>
 
 <script src="js/data.js?v=54"></script>
-<script src="js/admin.js?v=4"></script>
+<script src="js/admin.js?v=5"></script>
 </body>
 </html>
