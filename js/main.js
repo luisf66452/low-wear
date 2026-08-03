@@ -4,12 +4,16 @@
   const LWD = window.LowWearData;
   const euro = LWD.euro;
 
-  /* ---------------- Shopify Buy Button integration ----------------
-     Products listed here use the real Shopify checkout (via the Buy
-     Button SDK) instead of the site's local demo cart. Add an entry
-     per product as it gets its own Shopify Buy Button set up. */
+  /* ---------------- Shopify checkout integration ----------------
+     Products listed here check out for real through Shopify (Storefront
+     API) instead of the site's local demo cart. The site's own size /
+     version / personalization UI stays as-is — we just send the choice
+     to Shopify as cart line-item attributes and hand off to Shopify's
+     hosted checkout, since the Buy Button widget has no field for a
+     custom name/number. Add an entry per product as it goes live on Shopify. */
   const SHOPIFY_DOMAIN = 'rbdfwr-dv.myshopify.com';
   const SHOPIFY_STOREFRONT_TOKEN = 'e8db550bd1d8b8f84400bf90b6df3bf6';
+  const SHOPIFY_API_VERSION = '2024-01';
   const SHOPIFY_PRODUCTS = {
     'sel-principal-24': { shopifyProductId: '16381716201821' },
     'sel-especial-24': { shopifyProductId: '16381717447005' },
@@ -28,72 +32,44 @@
     'cru-principal-24': { shopifyProductId: '16381724131677' },
     'cru-alt-24': { shopifyProductId: '16381724328285' },
   };
-  let shopifyClientPromise = null;
-  function loadShopifyBuySDK() {
-    if (window.ShopifyBuy && window.ShopifyBuy.UI) return Promise.resolve();
-    if (shopifyClientPromise) return shopifyClientPromise;
-    shopifyClientPromise = new Promise((resolve) => {
-      const script = document.createElement('script');
-      script.async = true;
-      script.src = 'https://sdks.shopifycdn.com/buy-button/latest/buy-button-storefront.min.js';
-      script.onload = resolve;
-      (document.head || document.body).appendChild(script);
+
+  async function shopifyGraphQL(query, variables) {
+    const res = await fetch(`https://${SHOPIFY_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Shopify-Storefront-Access-Token': SHOPIFY_STOREFRONT_TOKEN },
+      body: JSON.stringify({ query, variables }),
     });
-    return shopifyClientPromise;
+    return res.json();
   }
-  function mountShopifyBuyButton(mountEl, shopifyProductId) {
-    loadShopifyBuySDK().then(() => {
-      const client = ShopifyBuy.buildClient({ domain: SHOPIFY_DOMAIN, storefrontAccessToken: SHOPIFY_STOREFRONT_TOKEN });
-      ShopifyBuy.UI.onReady(client).then((ui) => {
-        ui.createComponent('product', {
-          id: shopifyProductId,
-          node: mountEl,
-          moneyFormat: '%E2%82%AC%7B%7Bamount_with_comma_separator%7D%7D',
-          options: {
-            product: {
-              styles: {
-                product: { '@media (min-width: 601px)': { 'max-width': '100%', 'margin-left': '0', 'margin-bottom': '0' } },
-                button: {
-                  'background-color': '#49e08a', color: '#072016', 'font-family': "'Space Mono', 'Courier New', monospace",
-                  'font-size': '13.5px', 'text-transform': 'uppercase', 'letter-spacing': '.03em',
-                  'border-radius': '3px', padding: '13px 20px', ':hover': { 'background-color': '#3fc978' },
-                  ':focus': { 'background-color': '#3fc978' },
-                },
-                select: {
-                  'background-color': '#121310', color: '#f4f3ec',
-                  border: '1px solid rgba(244,243,236,.22)', 'border-radius': '3px',
-                  padding: '12px 13px', 'font-size': '13.5px', ':focus': { 'border-color': '#49e08a' },
-                },
-                label: {
-                  color: '#82827a', 'font-family': "'Space Mono', 'Courier New', monospace",
-                  'font-size': '10.5px', 'text-transform': 'uppercase', 'letter-spacing': '.05em',
-                },
-              },
-              text: { button: 'Adicionar ao carrinho' },
-              contents: { img: false, title: false, price: false },
-            },
-            option: {
-              styles: {
-                label: {
-                  color: '#82827a', 'font-family': "'Space Mono', 'Courier New', monospace",
-                  'font-size': '10.5px', 'text-transform': 'uppercase', 'letter-spacing': '.05em',
-                },
-                select: {
-                  'background-color': '#121310', color: '#f4f3ec',
-                  border: '1px solid rgba(244,243,236,.22)', 'border-radius': '3px',
-                  padding: '12px 13px', 'font-size': '13.5px', ':focus': { 'border-color': '#49e08a' },
-                },
-              },
-            },
-            modalProduct: {
-              contents: { img: false, imgWithCarousel: true, button: false, buttonWithQuantity: true },
-              text: { button: 'Adicionar ao carrinho' },
-            },
-            cart: { text: { total: 'Subtotal', button: 'Finalizar compra' } },
-          },
-        });
-      });
-    });
+
+  async function fetchShopifyVariants(productId) {
+    const result = await shopifyGraphQL(
+      `query($id: ID!) { product(id: $id) { variants(first: 20) { edges { node {
+        id availableForSale selectedOptions { name value }
+      } } } } }`,
+      { id: `gid://shopify/Product/${productId}` }
+    );
+    return result?.data?.product?.variants?.edges.map((e) => e.node) || [];
+  }
+
+  function pickShopifyVariant(variants, size) {
+    if (!variants.length) return null;
+    if (variants.length === 1) return variants[0];
+    const match = variants.find((v) => v.selectedOptions.some((o) => o.value.toUpperCase() === String(size).toUpperCase()));
+    return match || variants[0];
+  }
+
+  async function createShopifyCheckout(variantId, attributes) {
+    const result = await shopifyGraphQL(
+      `mutation($input: CartInput!) { cartCreate(input: $input) {
+        cart { checkoutUrl }
+        userErrors { field message }
+      } }`,
+      { input: { lines: [{ quantity: 1, merchandiseId: variantId, attributes }] } }
+    );
+    const errors = result?.data?.cartCreate?.userErrors;
+    if (errors && errors.length) throw new Error(errors.map((e) => e.message).join(', '));
+    return result?.data?.cartCreate?.cart?.checkoutUrl || null;
   }
 
   /* ---------------- state ---------------- */
@@ -879,20 +855,41 @@
         media: gallery[0],
       };
     }
-    $('#pdp-add-cart')?.addEventListener('click', () => { const item = buildPdpProduct(); if (item) addToCart(item); });
-    $('#pdp-buy-now')?.addEventListener('click', () => { const item = buildPdpProduct(); if (item) { addToCart(item); openOverlay(cartDrawer); } });
-
     const shopifyMap = SHOPIFY_PRODUCTS[p.id];
     if (shopifyMap) {
-      sizesEl.closest('.pdp-block')?.style.setProperty('display', 'none');
-      versionWrap?.style.setProperty('display', 'none');
-      $('#personalize-block')?.style.setProperty('display', 'none');
-      const actions = $('.pdp-actions');
-      actions.style.display = 'none';
-      const mount = document.createElement('div');
-      mount.id = 'shopify-buy-' + p.id;
-      actions.insertAdjacentElement('afterend', mount);
-      mountShopifyBuyButton(mount, shopifyMap.shopifyProductId);
+      const addBtn = $('#pdp-add-cart');
+      const buyBtn = $('#pdp-buy-now');
+      const goToShopifyCheckout = async (btn) => {
+        const item = buildPdpProduct();
+        if (!item) return;
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'A preparar…';
+        try {
+          const variants = await fetchShopifyVariants(shopifyMap.shopifyProductId);
+          const variant = pickShopifyVariant(variants, item.size);
+          if (!variant || !variant.availableForSale) {
+            showToast('Este tamanho está esgotado.');
+            return;
+          }
+          const attributes = [{ key: 'Tamanho', value: item.size }];
+          if (item.version) attributes.push({ key: 'Versão', value: item.version });
+          if (item.custom) attributes.push({ key: 'Personalização', value: item.custom });
+          const checkoutUrl = await createShopifyCheckout(variant.id, attributes);
+          if (checkoutUrl) window.location.href = checkoutUrl;
+          else showToast('Não foi possível iniciar o checkout. Tenta novamente.');
+        } catch (err) {
+          showToast('Erro ao contactar a loja. Tenta novamente.');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = originalText;
+        }
+      };
+      addBtn?.addEventListener('click', () => goToShopifyCheckout(addBtn));
+      buyBtn?.addEventListener('click', () => goToShopifyCheckout(buyBtn));
+    } else {
+      $('#pdp-add-cart')?.addEventListener('click', () => { const item = buildPdpProduct(); if (item) addToCart(item); });
+      $('#pdp-buy-now')?.addEventListener('click', () => { const item = buildPdpProduct(); if (item) { addToCart(item); openOverlay(cartDrawer); } });
     }
 
     const favBtn = $('#pdp-fav-btn');
