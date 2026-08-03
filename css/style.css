@@ -828,12 +828,23 @@ body.no-hero .site-header{
 .admin-sub{ color:var(--muted); font-size:13px; line-height:1.5; }
 
 .admin-empty{ color:var(--muted); font-size:13px; padding:16px 0; }
+.admin-hint{ color:var(--muted); font-size:12px; margin-bottom:14px; }
 
 .admin-list-head h3{ font-family:var(--font-display); font-size:18px; text-transform:uppercase; margin-bottom:14px; }
 
 .admin-section{ padding:0; }
 .admin-section h2{ font-family:var(--font-display); font-size:24px; text-transform:uppercase; margin-bottom:6px; }
 .admin-section > .admin-sub{ margin-bottom:22px; }
+
+.flash-setup-note{
+  margin-bottom:22px; padding:14px 16px; border:1px dashed var(--line-strong); border-radius:var(--radius-s);
+  background:var(--bg-sunken); color:var(--muted); font-size:12.5px; line-height:1.6;
+}
+.flash-setup-note strong{ color:var(--ink); }
+.flash-setup-note code{
+  font-family:var(--font-mono); background:var(--bg-raise); border:1px solid var(--line-strong);
+  border-radius:3px; padding:1px 5px; color:var(--accent); font-size:11.5px;
+}
 
 .admin-flash-form{ margin-bottom:20px; }
 .admin-flash-grid{ display:grid; grid-template-columns:1fr 1fr; gap:0 16px; }
@@ -945,16 +956,6 @@ body.no-hero .site-header{
 .flash-decline{ align-self:center; font-size:12px; color:var(--muted); text-decoration:underline; }
 .flash-decline:hover{ color:var(--ink); }
 
-.flash-stickybar{
-  position:fixed; left:50%; bottom:0; transform:translateX(-50%); z-index:90;
-  display:flex; align-items:center; gap:12px; padding:12px 22px; margin-bottom:14px;
-  background:var(--ink); color:var(--bg); border-radius:999px; font-size:12.5px;
-  box-shadow:0 12px 30px rgba(0,0,0,.35); animation:flashPop .3s var(--ease);
-}
-.flash-bar-dot{ width:8px; height:8px; border-radius:50%; background:var(--accent); animation:flashUrgentPulse 1.4s ease-in-out infinite; flex-shrink:0; }
-.flash-stickybar strong{ font-family:var(--font-mono); }
-.flash-stickybar button{ margin-left:6px; padding:6px 14px; border-radius:999px; background:var(--accent); color:var(--accent-ink); font-weight:700; font-size:11.5px; }
-
 @media (max-width:720px){
   .flash-popup{ grid-template-columns:1fr; width:92vw; }
   .flash-media{ min-height:180px; padding:20px; }
@@ -962,7 +963,6 @@ body.no-hero .site-header{
   .flash-body{ padding:24px 20px; }
   .flash-name{ font-size:22px; }
   .flash-now{ font-size:26px; }
-  .flash-stickybar{ width:92vw; flex-wrap:wrap; justify-content:center; text-align:center; }
 }
 
 .toast{

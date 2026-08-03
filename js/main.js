@@ -5,33 +5,17 @@
   const euro = LWD.euro;
 
   /* ---------------- Shopify checkout integration ----------------
-     Products listed here check out for real through Shopify (Storefront
-     API) instead of the site's local demo cart. The site's own size /
-     version / personalization UI stays as-is — we just send the choice
-     to Shopify as cart line-item attributes and hand off to Shopify's
-     hosted checkout, since the Buy Button widget has no field for a
-     custom name/number. Add an entry per product as it goes live on Shopify. */
+     Products checkout for real through Shopify (Storefront API) instead
+     of the site's local demo cart — see LWD.SHOPIFY_PRODUCTS (js/data.js)
+     for the id mapping, shared with admin.html and flash-offer.js. The
+     site's own size / version / personalization UI stays as-is — we just
+     send the choice to Shopify as cart line-item attributes and hand off
+     to Shopify's hosted checkout, since the Buy Button widget has no
+     field for a custom name/number. */
   const SHOPIFY_DOMAIN = 'rbdfwr-dv.myshopify.com';
   const SHOPIFY_STOREFRONT_TOKEN = 'e8db550bd1d8b8f84400bf90b6df3bf6';
   const SHOPIFY_API_VERSION = '2024-01';
-  const SHOPIFY_PRODUCTS = {
-    'sel-principal-24': { shopifyProductId: '16381716201821' },
-    'sel-especial-24': { shopifyProductId: '16381717447005' },
-    'sel-alt-24': { shopifyProductId: '16381716857181' },
-    'fla-principal-24': { shopifyProductId: '16381717807453' },
-    'fla-alt-24': { shopifyProductId: '16381718331741' },
-    'fla-extra-24': { shopifyProductId: '16381721051485' },
-    'cor-principal-24': { shopifyProductId: '16381721215325' },
-    'cor-extra-24': { shopifyProductId: '16381721674077' },
-    'sao-principal-24': { shopifyProductId: '16381721903453' },
-    'sao-retro': { shopifyProductId: '16381722263901' },
-    'pal-principal-24': { shopifyProductId: '16381722362205' },
-    'pal-retro': { shopifyProductId: '16381722624349' },
-    'santos-principal-24': { shopifyProductId: '16381722755421' },
-    'santos-extra-24': { shopifyProductId: '16381723050333' },
-    'cru-principal-24': { shopifyProductId: '16381724131677' },
-    'cru-alt-24': { shopifyProductId: '16381724328285' },
-  };
+  const SHOPIFY_PRODUCTS = LWD.SHOPIFY_PRODUCTS;
 
   async function shopifyGraphQL(query, variables) {
     const res = await fetch(`https://${SHOPIFY_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`, {
@@ -59,18 +43,30 @@
     return match || variants[0];
   }
 
-  async function createShopifyCheckout(variantId, attributes) {
+  async function createShopifyCheckout(variantId, attributes, discountCode) {
+    const input = { lines: [{ quantity: 1, merchandiseId: variantId, attributes }] };
+    if (discountCode) input.discountCodes = [discountCode];
     const result = await shopifyGraphQL(
       `mutation($input: CartInput!) { cartCreate(input: $input) {
         cart { checkoutUrl }
         userErrors { field message }
       } }`,
-      { input: { lines: [{ quantity: 1, merchandiseId: variantId, attributes }] } }
+      { input }
     );
     const errors = result?.data?.cartCreate?.userErrors;
     if (errors && errors.length) throw new Error(errors.map((e) => e.message).join(', '));
     return result?.data?.cartCreate?.cart?.checkoutUrl || null;
   }
+
+  // Exposed so js/flash-offer.js (a separate module) can send flash-offer
+  // redemptions through the same real Shopify checkout as regular purchases,
+  // instead of duplicating the Storefront API calls. The product-id mapping
+  // itself lives in LWD.SHOPIFY_PRODUCTS (js/data.js), shared by both.
+  window.LWShopify = {
+    fetchVariants: fetchShopifyVariants,
+    pickVariant: pickShopifyVariant,
+    createCheckout: createShopifyCheckout,
+  };
 
   /* ---------------- state ---------------- */
   const STORE_KEY_CART = 'lw_cart';

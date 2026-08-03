@@ -175,8 +175,30 @@
     return [jerseySVG(p.main, p.trim)];
   }
 
+  // Products checking out for real through Shopify (see js/main.js for the
+  // Storefront API calls). Shared here so admin.html and flash-offer.js can
+  // also know which products have a real checkout without loading main.js.
+  const SHOPIFY_PRODUCTS = {
+    'sel-principal-24': { shopifyProductId: '16381716201821' },
+    'sel-especial-24': { shopifyProductId: '16381717447005' },
+    'sel-alt-24': { shopifyProductId: '16381716857181' },
+    'fla-principal-24': { shopifyProductId: '16381717807453' },
+    'fla-alt-24': { shopifyProductId: '16381718331741' },
+    'fla-extra-24': { shopifyProductId: '16381721051485' },
+    'cor-principal-24': { shopifyProductId: '16381721215325' },
+    'cor-extra-24': { shopifyProductId: '16381721674077' },
+    'sao-principal-24': { shopifyProductId: '16381721903453' },
+    'sao-retro': { shopifyProductId: '16381722263901' },
+    'pal-principal-24': { shopifyProductId: '16381722362205' },
+    'pal-retro': { shopifyProductId: '16381722624349' },
+    'santos-principal-24': { shopifyProductId: '16381722755421' },
+    'santos-extra-24': { shopifyProductId: '16381723050333' },
+    'cru-principal-24': { shopifyProductId: '16381724131677' },
+    'cru-alt-24': { shopifyProductId: '16381724328285' },
+  };
+
   window.LowWearData = {
-    TEAMS, PRODUCTS, TYPE_LABEL, FEATURED_IDS,
+    TEAMS, PRODUCTS, TYPE_LABEL, FEATURED_IDS, SHOPIFY_PRODUCTS,
     euro, getTeam, getProduct, getProductsByTeam, fullName, jerseySVG, productMedia, productGallery,
   };
 })();

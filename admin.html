@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=29">
+<link rel="stylesheet" href="css/style.css?v=30">
 </head>
 <body data-page="admin" style="background:var(--bg);min-height:100vh;">
 
@@ -38,10 +38,14 @@
 
     <div id="flash-admin-current"></div>
 
+    <div class="flash-setup-note">
+      <strong>Antes de ativar:</strong> cria em Shopify Admin → Descontos 5 códigos de percentagem, sem valor mínimo de compra, com estes nomes exatos: <code>FLASH10</code>, <code>FLASH15</code>, <code>FLASH20</code>, <code>FLASH25</code>, <code>FLASH30</code> (10%, 15%, 20%, 25% e 30%, respetivamente). A oferta relâmpago só escolhe destes 5 valores — sem esses códigos criados, o desconto não é aplicado no checkout real.
+    </div>
+
     <form id="flash-config-form" class="admin-flash-form">
       <div class="admin-flash-grid">
-        <div class="field"><label for="fc-min">Desconto mínimo (%)</label><input type="number" id="fc-min" min="1" max="90" required></div>
-        <div class="field"><label for="fc-max">Desconto máximo (%)</label><input type="number" id="fc-max" min="1" max="90" required></div>
+        <div class="field"><label for="fc-min">Desconto mínimo (%)</label><input type="number" id="fc-min" min="10" max="30" step="5" required></div>
+        <div class="field"><label for="fc-max">Desconto máximo (%)</label><input type="number" id="fc-max" min="10" max="30" step="5" required></div>
         <div class="field"><label for="fc-stock">Estoque mínimo (nº de tamanhos disponíveis)</label><input type="number" id="fc-stock" min="1" max="4" required></div>
         <div class="field"><label for="fc-freq">Frequência da campanha (dias)</label><input type="number" id="fc-freq" min="1" max="30" required></div>
         <div class="field"><label for="fc-start">Data de início (opcional)</label><input type="date" id="fc-start"></div>
@@ -64,11 +68,12 @@
     <div class="admin-list-head">
       <h3>Histórico e desempenho das campanhas</h3>
     </div>
+    <p class="admin-hint">"Checkouts iniciados" conta quem foi redirecionado para o checkout da Shopify com o desconto — não confirma o pagamento. Para vendas confirmadas, consulta a Shopify Admin → Encomendas.</p>
     <div id="flash-admin-log"></div>
   </section>
 </div>
 
-<script src="js/data.js?v=54"></script>
-<script src="js/admin.js?v=5"></script>
+<script src="js/data.js?v=55"></script>
+<script src="js/admin.js?v=6"></script>
 </body>
 </html>

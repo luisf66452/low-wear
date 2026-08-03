@@ -1,13 +1,21 @@
 /* ============================================================
    Low Wear — Oferta Relâmpago Surpresa
-   Client-side campaign engine + popup + sticky countdown bar.
+   Client-side campaign engine + popup.
 
    Honesty note: this static site has no server/database, so "campaign
    state" lives in localStorage (shared with admin.html) instead of a
-   real backend. That means the countdown, stock check and one-offer-
-   per-browser rule are all real *for this browser*, but a campaign
-   generated here isn't synced across different visitors/devices —
-   that needs the Shopify (or other) backend integration planned later.
+   real backend. The countdown, stock check and one-offer-per-browser
+   rule are all real *for this browser*, but a campaign generated here
+   isn't synced across different visitors/devices.
+
+   The discount itself is real: accepting sends the customer to Shopify's
+   real checkout (via js/main.js's window.LWShopify helpers) with a
+   Shopify discount code applied, so the price shown really is the price
+   charged. Because the Storefront API only accepts pre-existing discount
+   codes (it can't set an arbitrary custom price), the campaign picks its
+   percentage from a fixed set — FLASH_DISCOUNT_CODES below — and those
+   exact codes (percentage-off, no minimum) must exist in Shopify Admin
+   → Discounts for the checkout step to actually apply them.
    ============================================================ */
 (() => {
   const $ = (sel, ctx = document) => ctx.querySelector(sel);
@@ -22,6 +30,11 @@
   const KEY_TOTAL_REDEMPTIONS = 'lw_flash_total_redemptions';
   const SESSION_KEY_SHOWN = 'lw_flash_shown_session';
 
+  // Must match real discount codes created in Shopify Admin → Discounts
+  // (percentage off, no minimum purchase, one per value below).
+  const FLASH_DISCOUNT_CODES = { 10: 'FLASH10', 15: 'FLASH15', 20: 'FLASH20', 25: 'FLASH25', 30: 'FLASH30' };
+  const FLASH_DISCOUNT_STEPS = Object.keys(FLASH_DISCOUNT_CODES).map(Number);
+
   const DEFAULT_CONFIG = {
     minDiscount: 10,
     maxDiscount: 30,
@@ -34,6 +47,12 @@
   };
 
   const OFFER_MINUTES = 10;
+
+  function pickDiscountStep(minDiscount, maxDiscount) {
+    const inRange = FLASH_DISCOUNT_STEPS.filter((v) => v >= minDiscount && v <= maxDiscount);
+    const pool = inRange.length ? inRange : FLASH_DISCOUNT_STEPS;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
 
   const loadJSON = (key, fallback) => {
     try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
@@ -60,7 +79,8 @@
     const pool = config.eligibleProductIds && config.eligibleProductIds.length
       ? config.eligibleProductIds.map(id => LWD.getProduct(id)).filter(Boolean)
       : LWD.PRODUCTS.slice();
-    return pool.filter(p => p.availability !== 'esgotado' && p.sizes.length >= config.minStockSizes);
+    const shopifyProducts = LWD.SHOPIFY_PRODUCTS || {};
+    return pool.filter(p => p.availability !== 'esgotado' && p.sizes.length >= config.minStockSizes && shopifyProducts[p.id]);
   }
 
   function withinProgramWindow(config, now) {
@@ -73,7 +93,7 @@
     const eligible = getEligibleProducts(config);
     if (!eligible.length) return null;
     const product = eligible[Math.floor(Math.random() * eligible.length)];
-    const discountPct = Math.round(config.minDiscount + Math.random() * (config.maxDiscount - config.minDiscount));
+    const discountPct = pickDiscountStep(config.minDiscount, config.maxDiscount);
     const campaign = {
       id: 'FLASH-' + now + '-' + Math.random().toString(36).slice(2, 6),
       productId: product.id,
@@ -114,9 +134,8 @@
     return `${m}:${s}`;
   }
 
-  /* ---------------- popup + sticky bar rendering ---------------- */
+  /* ---------------- popup rendering ---------------- */
   const popupRoot = $('#flash-popup-root');
-  const barRoot = $('#flash-stickybar-root');
   let countdownTimer = null;
 
   function anyBlockingOverlayOpen() {
@@ -137,30 +156,6 @@
     const state = loadOfferState();
     if (state) { state.status = 'declined'; saveOfferState(state); }
     closePopup();
-  }
-
-  function showExpiredToast() {
-    const toast = $('#toast');
-    if (!toast) return;
-    toast.querySelector('.toast-msg').textContent = 'Esta oferta terminou, mas ainda pode comprar a camisa pelo preço normal.';
-    toast.classList.add('is-open');
-    setTimeout(() => toast.classList.remove('is-open'), 4200);
-  }
-
-  function revertCartItemPrice(offerId) {
-    const cart = loadJSON('lw_cart', []);
-    let touched = false;
-    cart.forEach(item => {
-      if (item.flashOffer && item.offerId === offerId) {
-        item.price = item.originalPrice;
-        item.flashOffer = false;
-        touched = true;
-      }
-    });
-    if (touched) {
-      save('lw_cart', cart);
-      window.dispatchEvent(new Event('lw:cart-sync'));
-    }
   }
 
   function renderPopup(campaign, product, state) {
@@ -189,8 +184,9 @@
             <p class="flash-size-error" id="flash-size-error" style="display:none;">Escolhe um tamanho para continuar.</p>
           </div>
           <div class="flash-urgency" id="flash-urgency">Você tem apenas <strong id="flash-countdown">10:00</strong> para garantir esta oferta. Depois disso, o preço volta ao normal.</div>
+          <p class="flash-size-error" id="flash-checkout-error" style="display:none;"></p>
           <button class="btn btn-primary flash-cta" id="flash-cta" type="button">GARANTIR MINHA CAMISA AGORA</button>
-          <p class="flash-cta-note">Desconto aplicado automaticamente no carrinho.</p>
+          <p class="flash-cta-note">Vais ser encaminhado para o checkout seguro da Shopify com o desconto já aplicado.</p>
           <button class="flash-decline" id="flash-decline" type="button">Não quero aproveitar esta oferta</button>
         </div>
       </div>`;
@@ -219,7 +215,7 @@
         $('#flash-size-error').style.display = 'block';
         return;
       }
-      acceptOffer(campaign, liveProduct, selectedSize, discounted, state);
+      acceptOffer(campaign, liveProduct, selectedSize, state);
     });
 
     tickCountdown(campaign, state, () => {
@@ -252,60 +248,47 @@
     countdownTimer = setInterval(tick, 1000);
   }
 
-  function acceptOffer(campaign, product, size, discountedPrice, state) {
-    state.status = 'accepted';
-    saveOfferState(state);
-    bumpTotalRedemptions();
-
-    const cart = loadJSON('lw_cart', []);
-    cart.push({
-      id: product.id, name: LWD.fullName(product), media: LWD.productMedia(product),
-      type: LWD.TYPE_LABEL[product.type], price: discountedPrice, size, qty: 1, custom: '', version: '',
-      flashOffer: true, originalPrice: product.price, offerId: campaign.id,
-    });
-    save('lw_cart', cart);
-    window.dispatchEvent(new Event('lw:cart-sync'));
-    window.dispatchEvent(new Event('lw:open-cart'));
-
-    closePopup();
-    renderStickyBar(campaign, state);
-  }
-
-  function renderStickyBar(campaign, state) {
-    function tick() {
-      const msLeft = state.acceptByTs - Date.now();
-      if (msLeft <= 0) {
-        revertCartItemPrice(campaign.id);
-        const s = loadOfferState();
-        if (s && s.campaignId === campaign.id) { s.status = 'expired'; saveOfferState(s); }
-        barRoot.innerHTML = '';
-        clearInterval(barTimer);
-        showExpiredToast();
+  async function acceptOffer(campaign, product, size, state) {
+    const shopifyEntry = LWD.SHOPIFY_PRODUCTS?.[product.id];
+    const code = FLASH_DISCOUNT_CODES[campaign.discountPct];
+    const errorEl = $('#flash-checkout-error');
+    const ctaBtn = $('#flash-cta');
+    if (!shopifyEntry || !window.LWShopify) {
+      if (errorEl) { errorEl.textContent = 'Esta oferta não está disponível para checkout de momento.'; errorEl.style.display = 'block'; }
+      return;
+    }
+    const originalText = ctaBtn.textContent;
+    ctaBtn.disabled = true;
+    ctaBtn.textContent = 'A preparar…';
+    if (errorEl) errorEl.style.display = 'none';
+    try {
+      const variants = await window.LWShopify.fetchVariants(shopifyEntry.shopifyProductId);
+      const variant = window.LWShopify.pickVariant(variants, size);
+      if (!variant || !variant.availableForSale) {
+        if (errorEl) { errorEl.textContent = 'Este tamanho deixou de estar disponível.'; errorEl.style.display = 'block'; }
         return;
       }
-      const timeEl = $('#flash-bar-time');
-      if (timeEl) timeEl.textContent = fmtMMSS(msLeft);
+      const checkoutUrl = await window.LWShopify.createCheckout(
+        variant.id,
+        [{ key: 'Tamanho', value: size }, { key: 'Oferta relâmpago', value: `-${campaign.discountPct}%` }],
+        code
+      );
+      if (!checkoutUrl) {
+        if (errorEl) { errorEl.textContent = 'Não foi possível iniciar o checkout. Tenta novamente.'; errorEl.style.display = 'block'; }
+        return;
+      }
+      state.status = 'accepted';
+      saveOfferState(state);
+      bumpTotalRedemptions();
+      updateLog(campaign.id, (entry) => ({ purchases: entry.purchases + 1 }));
+      window.location.href = checkoutUrl;
+    } catch (err) {
+      if (errorEl) { errorEl.textContent = 'Erro ao contactar a loja. Tenta novamente.'; errorEl.style.display = 'block'; }
+    } finally {
+      ctaBtn.disabled = false;
+      ctaBtn.textContent = originalText;
     }
-    barRoot.innerHTML = `
-      <div class="flash-stickybar">
-        <span class="flash-bar-dot"></span>
-        Oferta relâmpago ativa — termina em <strong id="flash-bar-time">${fmtMMSS(state.acceptByTs - Date.now())}</strong>
-        <button type="button" id="flash-bar-cart">Ver carrinho</button>
-      </div>`;
-    $('#flash-bar-cart').addEventListener('click', () => window.dispatchEvent(new Event('lw:open-cart')));
-    const barTimer = setInterval(tick, 1000);
-    tick();
   }
-
-  window.addEventListener('lw:checkout-complete', (e) => {
-    const items = (e.detail && e.detail.items) || [];
-    const flashItem = items.find(i => i.flashOffer && i.offerId);
-    if (!flashItem) return;
-    updateLog(flashItem.offerId, (entry) => ({ purchases: entry.purchases + 1 }));
-    const state = loadOfferState();
-    if (state && state.campaignId === flashItem.offerId) { state.status = 'purchased'; saveOfferState(state); }
-    barRoot.innerHTML = '';
-  });
 
   /* ---------------- trigger scheduling ---------------- */
   function maybeShowPopup() {
@@ -330,19 +313,7 @@
     renderPopup(campaign, product, state);
   }
 
-  // Resume a sticky bar on page load if this browser already accepted an
-  // offer whose 10-minute window hasn't run out yet.
-  function resumeStickyBarIfActive() {
-    const state = loadOfferState();
-    if (!state || state.status !== 'accepted') return;
-    const campaign = loadCampaign();
-    if (!campaign || campaign.id !== state.campaignId) return;
-    if (Date.now() >= state.acceptByTs) { revertCartItemPrice(campaign.id); state.status = 'expired'; saveOfferState(state); return; }
-    renderStickyBar(campaign, state);
-  }
-
   function init() {
-    resumeStickyBarIfActive();
     if (sessionStorage.getItem(SESSION_KEY_SHOWN)) return;
 
     const delayMs = (15 + Math.random() * 25) * 1000; // 15–40s

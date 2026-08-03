@@ -50,6 +50,10 @@
       startDate: null, endDate: null, frequencyDays: 3, maxRedemptions: 0,
     };
 
+    // Must match FLASH_DISCOUNT_CODES in js/flash-offer.js and the real
+    // discount codes created in Shopify Admin → Discounts.
+    const FLASH_DISCOUNT_STEPS = [10, 15, 20, 25, 30];
+
     const loadJSON = (key, fallback) => {
       try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
     };
@@ -60,19 +64,26 @@
       const pool = config.eligibleProductIds.length
         ? config.eligibleProductIds.map(id => LWD.getProduct(id)).filter(Boolean)
         : LWD.PRODUCTS.slice();
-      return pool.filter(p => p.availability !== 'esgotado' && p.sizes.length >= config.minStockSizes);
+      const shopifyProducts = LWD.SHOPIFY_PRODUCTS || {};
+      return pool.filter(p => p.availability !== 'esgotado' && p.sizes.length >= config.minStockSizes && shopifyProducts[p.id]);
+    }
+
+    function pickDiscountStep(minDiscount, maxDiscount) {
+      const inRange = FLASH_DISCOUNT_STEPS.filter((v) => v >= minDiscount && v <= maxDiscount);
+      const pool = inRange.length ? inRange : FLASH_DISCOUNT_STEPS;
+      return pool[Math.floor(Math.random() * pool.length)];
     }
 
     function forceNewCampaign() {
       const config = loadConfig();
       const eligible = getEligibleProducts(config);
       if (!eligible.length) {
-        currentBox.innerHTML = '<div class="flash-current-card">Nenhum produto elegível (verifica o estoque mínimo e a lista de produtos participantes).</div>';
+        currentBox.innerHTML = '<div class="flash-current-card">Nenhum produto elegível (verifica o estoque mínimo, a lista de produtos participantes, e se os produtos já estão ligados à Shopify).</div>';
         return;
       }
       const now = Date.now();
       const product = eligible[Math.floor(Math.random() * eligible.length)];
-      const discountPct = Math.round(config.minDiscount + Math.random() * (config.maxDiscount - config.minDiscount));
+      const discountPct = pickDiscountStep(config.minDiscount, config.maxDiscount);
       const campaign = { id: 'FLASH-' + now + '-' + Math.random().toString(36).slice(2, 6), productId: product.id, discountPct, startedAt: now, endsAt: now + config.frequencyDays * 86400000 };
       save(KEY_CAMPAIGN, campaign);
       const log = loadJSON(KEY_LOG, []);
@@ -141,13 +152,13 @@
             <span>${period}</span>
             <span>${entry.views} vistas</span>
             <span>${entry.clicks} cliques</span>
-            <span>${entry.purchases} compras</span>
+            <span>${entry.purchases} checkouts</span>
             <span>${conv}% conv.</span>
           </div>`;
       }).join('');
       logBox.innerHTML = `
         <div class="admin-flash-log-row admin-flash-log-head">
-          <span>Produto</span><span>Período</span><span>Vistas</span><span>Cliques</span><span>Compras</span><span>Conversão</span>
+          <span>Produto</span><span>Período</span><span>Vistas</span><span>Cliques</span><span>Checkouts iniciados</span><span>Conversão</span>
         </div>` + rows;
     }
 
