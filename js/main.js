@@ -105,12 +105,28 @@
   $('#footer-exchange')?.addEventListener('click', (e) => { e.preventDefault(); openOverlay($('#exchange-modal')); });
   $('#footer-faq')?.addEventListener('click', (e) => { e.preventDefault(); openOverlay($('#faq-modal')); });
 
-  /* ---------------- sobre — vídeos de relatos ---------------- */
-  $$('.about-video-card').forEach(card => {
+  /* ---------------- sobre / unboxing — vídeos ----------------
+     Only play a video once it's actually on screen — mobile browsers
+     throttle or suspend off-screen <video> playback for battery/data
+     reasons, and since these grids sit well below the fold, calling
+     play() once at page load left every clip stuck paused on phones. */
+  const aboutVideoCards = $$('.about-video-card');
+  const videoObserver = 'IntersectionObserver' in window
+    ? new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          const video = $('.about-video', entry.target);
+          if (!video) return;
+          if (entry.isIntersecting) video.play().catch(() => {});
+          else video.pause();
+        });
+      }, { threshold: 0.35 })
+    : null;
+  aboutVideoCards.forEach(card => {
     const video = $('.about-video', card);
     const muteBtn = $('.about-video-mute', card);
     if (!video) return;
-    video.play().catch(() => {}); // ignore autoplay-blocked rejections; user can still tap to play
+    if (videoObserver) videoObserver.observe(card);
+    else video.play().catch(() => {}); // no IntersectionObserver support — best effort
     video.addEventListener('error', () => card.classList.add('has-error'));
     muteBtn?.addEventListener('click', () => {
       video.muted = !video.muted;
