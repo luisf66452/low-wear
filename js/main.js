@@ -15,7 +15,7 @@
   const SHOPIFY_PRODUCTS = LWD.SHOPIFY_PRODUCTS;
 
   /* ---------------- state ---------------- */
-  const STORE_KEY_CART = 'lw_cart';
+  const STORE_KEY_CART_ID = 'lw_shopify_cart_id';
   const STORE_KEY_FAV  = 'lw_fav';
 
   const loadJSON = (key, fallback) => {
@@ -23,17 +23,51 @@
     catch { return fallback; }
   };
 
-  let cart = loadJSON(STORE_KEY_CART, []);
+  // The real Shopify cart (see LWD.Shopify in js/data.js), persisted by id
+  // so a customer can add several products over several page visits before
+  // finally checking out once, with everything in the same cart. Kept null
+  // until the first successful add/load.
+  let shopifyCart = null;
   let favs = loadJSON(STORE_KEY_FAV, []);
 
-  const saveCart = () => localStorage.setItem(STORE_KEY_CART, JSON.stringify(cart));
   const saveFavs = () => localStorage.setItem(STORE_KEY_FAV, JSON.stringify(favs));
 
-  // Lets other independently-loaded modules (e.g. js/flash-offer.js) write to lw_cart
-  // via localStorage and ask this module to re-read + re-render + open the drawer,
-  // without any direct coupling between the two scripts.
-  window.addEventListener('lw:cart-sync', () => { cart = loadJSON(STORE_KEY_CART, []); renderCart(); });
-  window.addEventListener('lw:open-cart', () => { cart = loadJSON(STORE_KEY_CART, []); openOverlay(cartDrawer); renderCart(); });
+  async function loadCartFromStorage() {
+    const id = localStorage.getItem(STORE_KEY_CART_ID);
+    if (!id) return;
+    try {
+      shopifyCart = await LWD.Shopify.getCart(id);
+      if (!shopifyCart) localStorage.removeItem(STORE_KEY_CART_ID); // expired on Shopify's side
+    } catch { shopifyCart = null; }
+    updateCounts();
+    renderCart();
+  }
+
+  async function addLineToCart(variantId, quantity, attributes) {
+    if (shopifyCart && shopifyCart.id) {
+      shopifyCart = await LWD.Shopify.addCartLine(shopifyCart.id, variantId, quantity, attributes);
+    } else {
+      shopifyCart = await LWD.Shopify.createCart(variantId, quantity, attributes);
+      localStorage.setItem(STORE_KEY_CART_ID, shopifyCart.id);
+    }
+    updateCounts();
+    renderCart();
+    return shopifyCart;
+  }
+
+  async function updateCartLineQty(lineId, quantity) {
+    if (!shopifyCart) return;
+    shopifyCart = await LWD.Shopify.updateCartLine(shopifyCart.id, lineId, quantity);
+    updateCounts();
+    renderCart();
+  }
+
+  async function removeCartLine(lineId) {
+    if (!shopifyCart) return;
+    shopifyCart = await LWD.Shopify.removeCartLine(shopifyCart.id, lineId);
+    updateCounts();
+    renderCart();
+  }
 
   /* ---------------- toast ---------------- */
   const toast = $('#toast');
@@ -147,88 +181,136 @@
   onScroll();
 
   /* ---------------- cart ---------------- */
+  // Reverse lookup so a Shopify cart line (which only knows the Shopify
+  // numeric product id) can be matched back to our own catalog entry for
+  // its name/photo/team, and — for the "escolha 6, pague 3" progress panel
+  // — whether it's a participating product.
+  const SHOPIFY_ID_TO_PRODUCT_ID = Object.fromEntries(
+    Object.entries(LWD.SHOPIFY_PRODUCTS).map(([id, v]) => [v.shopifyProductId, id])
+  );
+
   function renderCart() {
     const body = $('#drawer-body');
     const foot = $('#drawer-foot');
     if (!body) return;
-    if (cart.length === 0) {
+    const lines = shopifyCart?.lines || [];
+    if (lines.length === 0) {
       body.innerHTML = `
         <div class="drawer-empty">
           <svg viewBox="0 0 24 24"><path d="M3 6h2l2.4 12.2a2 2 0 0 0 2 1.8h8.5a2 2 0 0 0 2-1.6L21 8H6"/><circle cx="10" cy="21" r="1"/><circle cx="18" cy="21" r="1"/></svg>
           <p>O seu carrinho está vazio.<br>Adicione a sua próxima camisola.</p>
         </div>`;
       if (foot) foot.style.display = 'none';
+      renderPromoProgress(lines);
       updateCounts();
       return;
     }
     if (foot) foot.style.display = 'block';
-    body.innerHTML = cart.map((item, i) => `
-      <div class="cart-line" data-idx="${i}">
-        <div class="cl-media${item.media && item.media.startsWith('<img') ? ' has-photo' : ''}">${item.media}</div>
+    body.innerHTML = lines.map((line) => {
+      const productId = SHOPIFY_ID_TO_PRODUCT_ID[line.productId];
+      const p = productId ? LWD.getProduct(productId) : null;
+      const name = p ? LWD.fullName(p) : line.productTitle;
+      const media = p ? LWD.productMedia(p) : '';
+      const sizeAttr = line.attributes.find((a) => a.key === 'Tamanho');
+      const otherAttrs = line.attributes.filter((a) => a.key !== 'Tamanho').map((a) => a.value).join(' · ');
+      return `
+      <div class="cart-line" data-line-id="${line.id}">
+        <div class="cl-media${media.startsWith('<img') ? ' has-photo' : ''}">${media}</div>
         <div class="cl-info">
-          <div class="cl-name">${item.name}</div>
-          <div class="cl-meta">${item.type} · Tam. ${item.size}${item.custom ? ` · ${item.custom}` : ''}${item.version ? ` · ${item.version}` : ''}</div>
+          <div class="cl-name">${name}</div>
+          <div class="cl-meta">${sizeAttr ? `Tam. ${sizeAttr.value}` : line.variantTitle}${otherAttrs ? ` · ${otherAttrs}` : ''}</div>
           <div class="cl-row">
             <div class="qty-stepper">
               <button data-act="dec" aria-label="Diminuir quantidade">−</button>
-              <span>${item.qty}</span>
+              <span>${line.quantity}</span>
               <button data-act="inc" aria-label="Aumentar quantidade">+</button>
             </div>
-            <span class="cl-price">${euro(item.price * item.qty)}</span>
+            <span class="cl-price">${euro(line.lineTotal)}</span>
           </div>
           <button class="cl-remove" data-act="remove">Remover</button>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
 
-    const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
-    const discount = window.__discount || 0;
-    const total = Math.max(subtotal - discount, 0);
     const totalsEl = $('#drawer-totals');
     if (totalsEl) {
-      totalsEl.innerHTML = `
-        ${discount > 0 ? `<div class="drawer-subtotal"><span>Desconto</span><span>−${euro(discount)}</span></div>` : ''}
-        <div class="drawer-subtotal"><span>Subtotal</span><strong>${euro(total)}</strong></div>`;
+      totalsEl.innerHTML = `<div class="drawer-subtotal"><span>Total</span><strong>${euro(shopifyCart.total)}</strong></div>`;
     }
+    renderPromoProgress(lines);
     updateCounts();
   }
 
-  $('#drawer-body')?.addEventListener('click', (e) => {
+  $('#drawer-body')?.addEventListener('click', async (e) => {
     const line = e.target.closest('.cart-line');
-    if (!line) return;
-    const idx = Number(line.dataset.idx);
+    if (!line || !shopifyCart) return;
+    const lineId = line.dataset.lineId;
+    const current = shopifyCart.lines.find((l) => l.id === lineId);
+    if (!current) return;
     const act = e.target.dataset.act;
-    if (act === 'inc') cart[idx].qty++;
-    if (act === 'dec') cart[idx].qty = Math.max(1, cart[idx].qty - 1);
-    if (act === 'remove') cart.splice(idx, 1);
-    saveCart();
-    renderCart();
+    try {
+      if (act === 'inc') await updateCartLineQty(lineId, current.quantity + 1);
+      if (act === 'dec') await updateCartLineQty(lineId, Math.max(1, current.quantity - 1));
+      if (act === 'remove') await removeCartLine(lineId);
+    } catch { showToast('Erro ao atualizar o carrinho. Tenta novamente.'); }
   });
 
-  function updateCounts() {
-    const cartCount = cart.reduce((s, i) => s + i.qty, 0);
-    $$('.js-cart-count').forEach(el => { el.textContent = cartCount; el.style.display = cartCount ? 'flex' : 'none'; });
-    $$('.js-fav-count').forEach(el => { el.textContent = favs.length; el.style.display = favs.length ? 'flex' : 'none'; });
+  /* ---------------- "Escolha 6, pague 3" cart progress ----------------
+     Reads live off the real cart, so it always matches what's actually
+     there. This panel is a preview only — the discount that really lands
+     is whatever Shopify's own Buy X Get Y automatic discount calculates
+     at checkout (see PROMO_CONFIG note in js/data.js), so it's labelled
+     as an estimate rather than a promise. */
+  function renderPromoProgress(lines) {
+    const el = $('#cart-promo-progress');
+    if (!el) return;
+    if (!LWD.isPromoActive()) { el.style.display = 'none'; el.innerHTML = ''; return; }
+
+    const required = LWD.PROMO_CONFIG.requiredQuantity;
+    const freeQty = LWD.PROMO_CONFIG.freeQuantity;
+
+    const eligibleUnitPrices = [];
+    lines.forEach((line) => {
+      const productId = SHOPIFY_ID_TO_PRODUCT_ID[line.productId];
+      if (productId && LWD.isPromoEligible(productId)) {
+        for (let i = 0; i < line.quantity; i++) eligibleUnitPrices.push(line.unitPrice);
+      }
+    });
+    const count = eligibleUnitPrices.length;
+    el.style.display = 'block';
+
+    if (count === 0) {
+      el.innerHTML = `<p class="promo-progress-text">Adicione ${required} camisas participantes da promoção de inauguração para ativar "Escolha ${required}, pague ${required - freeQty}".</p>`;
+      return;
+    }
+    if (count >= required) {
+      const sorted = [...eligibleUnitPrices].sort((a, b) => a - b);
+      const freeTotal = sorted.slice(0, freeQty).reduce((s, v) => s + v, 0);
+      el.innerHTML = `
+        <div class="promo-progress-active">
+          <strong>🎉 PROMOÇÃO ATIVADA!</strong>
+          <p>Escolheu ${count} camisas participantes${count > required ? ` — a promoção aplica-se às primeiras ${required}` : ''}, e vai pagar apenas pelas ${required - freeQty} de maior valor.</p>
+          <p class="promo-progress-savings">Poupança estimada: ${euro(freeTotal)} <span class="promo-progress-note">(confirmada no checkout)</span></p>
+        </div>`;
+      return;
+    }
+    const remaining = required - count;
+    const messages = {
+      1: 'Ótima escolha! Adicione mais 5 camisas para ativar a promoção.',
+      2: 'Faltam 4 camisas para desbloquear a promoção.',
+      3: 'Faltam 3 camisas para desbloquear a promoção.',
+      4: 'Faltam 2 camisas para desbloquear a promoção.',
+      5: 'Falta apenas 1 camisa para ativar a oferta.',
+    };
+    el.innerHTML = `
+      <p class="promo-progress-text">${messages[count] || `Faltam ${remaining} camisas para desbloquear a promoção.`}</p>
+      <div class="promo-progress-bar"><div class="promo-progress-fill" style="width:${Math.min(100, (count / required) * 100)}%"></div></div>
+      <a href="index.html#catalogo" class="btn btn-ghost btn-sm promo-progress-cta">ESCOLHER MAIS UMA</a>`;
   }
 
-  $('#promo-apply')?.addEventListener('click', () => {
-    const val = $('#promo-input').value.trim().toUpperCase();
-    if (val === 'LOWWEAR10') {
-      const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
-      window.__discount = +(subtotal * 0.10).toFixed(2);
-      showToast('Código aplicado: -10% no total');
-    } else if (val) {
-      showToast('Código promocional inválido');
-    }
-    renderCart();
-  });
-
-  function addToCart(product) {
-    const existing = cart.find(i => i.id === product.id && i.size === product.size && i.custom === product.custom && i.version === product.version);
-    if (existing) existing.qty += 1;
-    else cart.push({ ...product, qty: 1 });
-    saveCart();
-    renderCart();
-    showToast(`${product.name} adicionada ao carrinho`);
+  function updateCounts() {
+    const cartCount = (shopifyCart?.lines || []).reduce((s, l) => s + l.quantity, 0);
+    $$('.js-cart-count').forEach(el => { el.textContent = cartCount; el.style.display = cartCount ? 'flex' : 'none'; });
+    $$('.js-fav-count').forEach(el => { el.textContent = favs.length; el.style.display = favs.length ? 'flex' : 'none'; });
   }
 
   /* ---------------- favorites ---------------- */
@@ -309,6 +391,7 @@
             <span class="now">${euro(p.price)}</span>
             ${p.was ? `<span class="was">${euro(p.was)}</span>` : ''}
           </div>
+          ${(!esgotado && LWD.isPromoActive() && LWD.isPromoEligible(p.id)) ? `<div class="promo-card-badge">LEVE 6 · PAGUE 3</div>` : ''}
           ${esgotado ? `<div class="p-stock">Esgotado — nova reposição em breve</div>` : ''}
           <div class="size-row">${sizesHTML}</div>
           <div class="product-actions">
@@ -468,24 +551,11 @@
     e.preventDefault(); closeAllOverlays(); showToast('Sessão iniciada com sucesso');
   }));
 
-  /* ---------------- checkout (local cart fallback) ----------------
-     Every catalog product now checks out for real through Shopify
-     (see goToShopifyCheckout below), so this local cart only ever fills
-     up from the Flash Offer popup or a future product not yet linked
-     to Shopify. It has no order tracking — it just confirms and clears. */
+  /* ---------------- checkout ---------------- */
   $('#checkout-btn')?.addEventListener('click', (e) => {
     e.preventDefault();
-    if (cart.length === 0) { showToast('O seu carrinho está vazio'); return; }
-    openOverlay($('#checkout-modal'));
-  });
-  $('#checkout-form')?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    window.dispatchEvent(new CustomEvent('lw:checkout-complete', { detail: { items: cart } }));
-    cart = [];
-    saveCart();
-    renderCart();
-    closeAllOverlays();
-    showToast('Obrigado! Vamos entrar em contacto brevemente.');
+    if (!shopifyCart || !shopifyCart.lines.length) { showToast('O seu carrinho está vazio'); return; }
+    window.location.href = shopifyCart.checkoutUrl;
   });
 
   /* ---------------- size guide ---------------- */
@@ -544,6 +614,14 @@
     $('#pdp-price').innerHTML = p.was
       ? `<span>${euro(p.price)}</span><span class="was">${euro(p.was)}</span>`
       : `<span>${euro(p.price)}</span>`;
+
+    const promoBadgeEl = $('#pdp-promo-badge');
+    if (promoBadgeEl) {
+      promoBadgeEl.innerHTML = (p.availability !== 'esgotado' && LWD.isPromoActive() && LWD.isPromoEligible(p.id))
+        ? `<div class="promo-card-badge promo-pdp-badge">LEVE 6 · PAGUE 3</div>
+           <p class="promo-pdp-note">Produto participante da promoção de inauguração. <a href="#" class="js-promo-how">Ver regras da promoção</a></p>`
+        : '';
+    }
 
     if (p.tag) {
       $('#pdp-tag').textContent = p.tag;
@@ -655,10 +733,10 @@
       };
     }
     const shopifyMap = SHOPIFY_PRODUCTS[p.id];
+    const addBtn = $('#pdp-add-cart');
+    const buyBtn = $('#pdp-buy-now');
     if (shopifyMap) {
-      const addBtn = $('#pdp-add-cart');
-      const buyBtn = $('#pdp-buy-now');
-      const goToShopifyCheckout = async (btn) => {
+      const runAdd = async (btn, { goToCheckout }) => {
         const item = buildPdpProduct();
         if (!item) return;
         const originalText = btn.textContent;
@@ -674,9 +752,13 @@
           const attributes = [{ key: 'Tamanho', value: item.size }];
           if (item.version) attributes.push({ key: 'Versão', value: item.version });
           if (item.custom) attributes.push({ key: 'Personalização', value: item.custom });
-          const checkoutUrl = await LWD.Shopify.createCheckout(variant.id, attributes);
-          if (checkoutUrl) window.location.href = checkoutUrl;
-          else showToast('Não foi possível iniciar o checkout. Tenta novamente.');
+          await addLineToCart(variant.id, 1, attributes);
+          if (goToCheckout) {
+            window.location.href = shopifyCart.checkoutUrl;
+          } else {
+            showToast(`${LWD.fullName(p)} adicionada ao carrinho`);
+            openOverlay(cartDrawer);
+          }
         } catch (err) {
           showToast('Erro ao contactar a loja. Tenta novamente.');
         } finally {
@@ -684,11 +766,11 @@
           btn.textContent = originalText;
         }
       };
-      addBtn?.addEventListener('click', () => goToShopifyCheckout(addBtn));
-      buyBtn?.addEventListener('click', () => goToShopifyCheckout(buyBtn));
+      addBtn?.addEventListener('click', () => runAdd(addBtn, { goToCheckout: false }));
+      buyBtn?.addEventListener('click', () => runAdd(buyBtn, { goToCheckout: true }));
     } else {
-      $('#pdp-add-cart')?.addEventListener('click', () => { const item = buildPdpProduct(); if (item) addToCart(item); });
-      $('#pdp-buy-now')?.addEventListener('click', () => { const item = buildPdpProduct(); if (item) { addToCart(item); openOverlay(cartDrawer); } });
+      addBtn?.addEventListener('click', () => showToast('Este produto ainda não está disponível para compra.'));
+      buyBtn?.addEventListener('click', () => showToast('Este produto ainda não está disponível para compra.'));
     }
 
     const favBtn = $('#pdp-fav-btn');
@@ -714,6 +796,7 @@
   initProductPage();
   updateCounts();
   observeReveals();
+  loadCartFromStorage();
 
-  window.LowWear = { addToCart, toggleFav };
+  window.LowWear = { toggleFav, openOverlay, closeAllOverlays };
 })();

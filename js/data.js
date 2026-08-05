@@ -175,6 +175,43 @@
     return [jerseySVG(p.main, p.trim)];
   }
 
+  /* ============================================================
+     PROMOÇÃO DE INAUGURAÇÃO — "Escolha 6, pague 3"
+     Single source of truth for every date, rule and text used by the
+     campaign (top bar, hero section, countdown, badges, popup, cart
+     progress, "como funciona"). Edit this object only — nothing else —
+     to change dates, eligible products, or to turn the campaign off.
+     ============================================================ */
+  const PROMO_CONFIG = {
+    promotionEnabled: true,
+    // ISO 8601 with explicit Europe/Lisbon offset (WEST = +01:00 in August,
+    // no DST change inside this window) so the countdown is correct
+    // regardless of the visitor's own timezone.
+    promotionStart: '2026-08-04T00:00:00+01:00',
+    promotionEnd: '2026-08-25T23:59:59+01:00',
+    promotionTimeZone: 'Europe/Lisbon',
+    // Empty = every product in the catalog participates. List specific
+    // product ids (see PRODUCTS above) to restrict participation instead.
+    eligibleProducts: [],
+    requiredQuantity: 6,
+    freeQuantity: 3,
+    maximumApplicationsPerOrder: 1,
+  };
+
+  function isPromoActive(now) {
+    now = now || Date.now();
+    if (!PROMO_CONFIG.promotionEnabled) return false;
+    const start = new Date(PROMO_CONFIG.promotionStart).getTime();
+    const end = new Date(PROMO_CONFIG.promotionEnd).getTime();
+    return now >= start && now <= end;
+  }
+
+  function isPromoEligible(productId) {
+    const list = PROMO_CONFIG.eligibleProducts;
+    if (!list || !list.length) return true;
+    return list.includes(productId);
+  }
+
   // Products checking out for real through Shopify. Shared here (rather than
   // in js/main.js) so admin.html and js/flash-offer.js can also use it
   // without loading the whole storefront script.
@@ -295,6 +332,97 @@
     return true;
   }
 
+  /* ---------------- persistent multi-item cart ----------------
+     Previously every "Adicionar ao carrinho" / "Comprar agora" click
+     created a brand-new one-item Shopify cart and redirected straight to
+     checkout. That made it impossible for a customer to ever hold more
+     than one product at once, which breaks any multi-item promotion (e.g.
+     "buy 6 pay 3") since Shopify can only apply that discount if all 6
+     lines are sitting in the SAME cart when checkout is reached. These
+     functions manage one real Shopify cart, persisted by id in
+     localStorage, that lines get added to over time. */
+  const CART_FIELDS = `
+    id checkoutUrl
+    cost { subtotalAmount { amount } totalAmount { amount } }
+    lines(first: 100) { edges { node {
+      id quantity attributes { key value }
+      cost { totalAmount { amount } amountPerQuantity { amount } }
+      merchandise { ... on ProductVariant {
+        id title
+        product { id title }
+      } }
+    } } }
+  `;
+
+  function parseCart(cart) {
+    if (!cart) return null;
+    return {
+      id: cart.id,
+      checkoutUrl: cart.checkoutUrl,
+      subtotal: parseFloat(cart.cost.subtotalAmount.amount),
+      total: parseFloat(cart.cost.totalAmount.amount),
+      lines: cart.lines.edges.map((e) => ({
+        id: e.node.id,
+        quantity: e.node.quantity,
+        attributes: e.node.attributes,
+        lineTotal: parseFloat(e.node.cost.totalAmount.amount),
+        unitPrice: parseFloat(e.node.cost.amountPerQuantity.amount),
+        variantId: e.node.merchandise.id,
+        variantTitle: e.node.merchandise.title,
+        productId: e.node.merchandise.product.id.replace('gid://shopify/Product/', ''),
+        productTitle: e.node.merchandise.product.title,
+      })),
+    };
+  }
+
+  async function createShopifyCart(variantId, quantity, attributes) {
+    const result = await shopifyGraphQL(
+      `mutation($input: CartInput!) { cartCreate(input: $input) { cart { ${CART_FIELDS} } userErrors { field message } } }`,
+      { input: { lines: [{ quantity, merchandiseId: variantId, attributes }] } }
+    );
+    const errors = result?.data?.cartCreate?.userErrors;
+    if (errors && errors.length) throw new Error(errors.map((e) => e.message).join(', '));
+    return parseCart(result?.data?.cartCreate?.cart);
+  }
+
+  async function addShopifyCartLine(cartId, variantId, quantity, attributes) {
+    const result = await shopifyGraphQL(
+      `mutation($cartId: ID!, $lines: [CartLineInput!]!) { cartLinesAdd(cartId: $cartId, lines: $lines) { cart { ${CART_FIELDS} } userErrors { field message } } }`,
+      { cartId, lines: [{ quantity, merchandiseId: variantId, attributes }] }
+    );
+    const errors = result?.data?.cartLinesAdd?.userErrors;
+    if (errors && errors.length) throw new Error(errors.map((e) => e.message).join(', '));
+    return parseCart(result?.data?.cartLinesAdd?.cart);
+  }
+
+  async function removeShopifyCartLine(cartId, lineId) {
+    const result = await shopifyGraphQL(
+      `mutation($cartId: ID!, $lineIds: [ID!]!) { cartLinesRemove(cartId: $cartId, lineIds: $lineIds) { cart { ${CART_FIELDS} } userErrors { field message } } }`,
+      { cartId, lineIds: [lineId] }
+    );
+    const errors = result?.data?.cartLinesRemove?.userErrors;
+    if (errors && errors.length) throw new Error(errors.map((e) => e.message).join(', '));
+    return parseCart(result?.data?.cartLinesRemove?.cart);
+  }
+
+  async function updateShopifyCartLine(cartId, lineId, quantity) {
+    const result = await shopifyGraphQL(
+      `mutation($cartId: ID!, $lines: [CartLineUpdateInput!]!) { cartLinesUpdate(cartId: $cartId, lines: $lines) { cart { ${CART_FIELDS} } userErrors { field message } } }`,
+      { cartId, lines: [{ id: lineId, quantity }] }
+    );
+    const errors = result?.data?.cartLinesUpdate?.userErrors;
+    if (errors && errors.length) throw new Error(errors.map((e) => e.message).join(', '));
+    return parseCart(result?.data?.cartLinesUpdate?.cart);
+  }
+
+  async function fetchShopifyCart(cartId) {
+    const result = await shopifyGraphQL(
+      `query($id: ID!) { cart(id: $id) { ${CART_FIELDS} } }`,
+      { id: cartId }
+    );
+    return parseCart(result?.data?.cart);
+  }
+
   const Shopify = {
     PRODUCTS: SHOPIFY_PRODUCTS,
     fetchVariants: fetchShopifyVariants,
@@ -302,10 +430,16 @@
     createCheckout: createShopifyCheckout,
     checkAutomaticDiscount: checkShopifyAutomaticDiscount,
     newsletterSignup: shopifyNewsletterSignup,
+    createCart: createShopifyCart,
+    addCartLine: addShopifyCartLine,
+    removeCartLine: removeShopifyCartLine,
+    updateCartLine: updateShopifyCartLine,
+    getCart: fetchShopifyCart,
   };
 
   window.LowWearData = {
     TEAMS, PRODUCTS, TYPE_LABEL, FEATURED_IDS, SHOPIFY_PRODUCTS, Shopify,
     euro, getTeam, getProduct, getProductsByTeam, fullName, jerseySVG, productMedia, productGallery,
+    PROMO_CONFIG, isPromoActive, isPromoEligible,
   };
 })();

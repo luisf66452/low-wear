@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=33">
+<link rel="stylesheet" href="css/style.css?v=35">
 <!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "c29fdf9a79b44d268ce283fa1ff48e87"}'></script><!-- End Cloudflare Web Analytics -->
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="img/favicon/favicon-32.png">
@@ -26,6 +26,14 @@
 <link rel="apple-touch-icon" sizes="180x180" href="img/favicon/favicon-180.png">
 </head>
 <body class="no-hero" data-page="product">
+
+<div class="promo-bar promo-only" id="promo-bar" role="region" aria-label="Promoção de inauguração" hidden>
+  <div class="promo-bar-inner">
+    <p class="promo-bar-main">🔥 INAUGURAÇÃO LOW WEAR: ESCOLHA 6 CAMISAS E PAGUE APENAS 3</p>
+    <p class="promo-bar-sub">Adicione 6 camisas participantes ao carrinho. As 3 de menor valor ficam grátis.</p>
+    <a href="index.html#catalogo" class="promo-bar-cta">APROVEITAR PROMOÇÃO</a>
+  </div>
+</div>
 
 <!-- ============ HEADER ============ -->
 <header class="site-header">
@@ -132,6 +140,7 @@
       <h1 id="pdp-name">Camisa</h1>
       <p class="pdp-sub" id="pdp-sub">—</p>
       <div class="pdp-price" id="pdp-price"></div>
+      <div id="pdp-promo-badge"></div>
 
       <div class="pdp-block">
         <div class="pdp-block-head">
@@ -302,12 +311,9 @@
     <h3>Carrinho</h3>
     <button class="drawer-close" data-close-overlay aria-label="Fechar carrinho"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
   </div>
+  <div id="cart-promo-progress" class="cart-promo-progress"></div>
   <div class="drawer-body" id="drawer-body"></div>
   <div class="drawer-foot" id="drawer-foot">
-    <div class="promo-field">
-      <input type="text" id="promo-input" placeholder="Código de desconto">
-      <button class="btn btn-ghost btn-sm" id="promo-apply">Aplicar</button>
-    </div>
     <div id="drawer-totals"></div>
     <a href="#" class="btn btn-primary btn-block" id="checkout-btn">Finalizar compra</a>
   </div>
@@ -354,17 +360,6 @@
     <button class="btn btn-primary btn-block" type="submit">Criar conta</button>
   </form>
   <p class="modal-switch">Já tem conta? <button id="to-login" type="button">Iniciar sessão</button></p>
-</div>
-
-<div class="modal-box" id="checkout-modal" role="dialog" aria-label="Finalizar compra" inert>
-  <button class="modal-close" data-close-overlay aria-label="Fechar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
-  <h3>Finalizar compra</h3>
-  <p class="modal-sub">Indica o teu nome e e-mail para confirmar a encomenda. (Ambiente de demonstração — sem cobrança real.)</p>
-  <form id="checkout-form">
-    <div class="field"><label for="co-name">Nome</label><input type="text" id="co-name" required autocomplete="name"></div>
-    <div class="field"><label for="co-email">Email</label><input type="email" id="co-email" required autocomplete="email"></div>
-    <button class="btn btn-primary btn-block" type="submit">Confirmar encomenda</button>
-  </form>
 </div>
 
 <div class="modal-box" id="size-guide-modal" role="dialog" aria-label="Guia de tamanhos" inert>
@@ -642,6 +637,28 @@
       <summary>Não recebi a confirmação da compra. O que devo fazer?</summary>
       <p>Confira primeiro a pasta de spam ou lixo eletrónico. Se a mensagem não estiver lá, fale connosco e envie o nome utilizado na compra para verificarmos o pedido.</p>
     </details>
+  </div>
+</div>
+
+<div class="modal-box legal-modal" id="promo-how-modal" role="dialog" aria-label="Como funciona a promoção" inert>
+  <button class="modal-close" data-close-overlay aria-label="Fechar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  <h3>Como funciona a promoção</h3>
+  <div class="legal-body">
+    <div class="promo-how-steps">
+      <div class="promo-how-step">
+        <span class="promo-how-num">1</span>
+        <div><h4>Escolha seis camisas</h4><p>Selecione seis modelos participantes. Você pode misturar clubes, cores e coleções.</p></div>
+      </div>
+      <div class="promo-how-step">
+        <span class="promo-how-num">2</span>
+        <div><h4>Adicione ao carrinho</h4><p>Acompanhe o contador até completar as seis camisas.</p></div>
+      </div>
+      <div class="promo-how-step">
+        <span class="promo-how-num">3</span>
+        <div><h4>Pague apenas três</h4><p>As três camisas de menor valor ficam gratuitas automaticamente no checkout.</p></div>
+      </div>
+    </div>
+    <p class="promo-how-conditions">Promoção válida de <span class="promo-date-start"></span> até <span class="promo-date-end"></span>. Na compra de seis camisas participantes, as três de menor valor ficam grátis. Limitada a uma aplicação por encomenda. Personalização e portes não incluídos. Não acumulável com outros descontos. Sujeita à disponibilidade dos produtos.</p>
   </div>
 </div>
 
@@ -979,9 +996,11 @@
 <div class="toast" id="toast"><span class="dot"></span><span class="toast-msg">Adicionado</span></div>
 
 <div id="flash-popup-root"></div>
+<div id="promo-popup-root"></div>
 
-<script src="js/data.js?v=60"></script>
-<script src="js/main.js?v=42"></script>
+<script src="js/data.js?v=61"></script>
+<script src="js/main.js?v=43"></script>
 <script src="js/flash-offer.js?v=5"></script>
+<script src="js/promo.js?v=1"></script>
 </body>
 </html>
