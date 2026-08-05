@@ -343,6 +343,7 @@
      localStorage, that lines get added to over time. */
   const CART_FIELDS = `
     id checkoutUrl
+    discountCodes { code applicable }
     cost { subtotalAmount { amount } totalAmount { amount } }
     lines(first: 100) { edges { node {
       id quantity attributes { key value }
@@ -361,6 +362,7 @@
       checkoutUrl: cart.checkoutUrl,
       subtotal: parseFloat(cart.cost.subtotalAmount.amount),
       total: parseFloat(cart.cost.totalAmount.amount),
+      discountCodes: (cart.discountCodes || []).map((d) => ({ code: d.code, applicable: d.applicable })),
       lines: cart.lines.edges.map((e) => ({
         id: e.node.id,
         quantity: e.node.quantity,
@@ -423,6 +425,29 @@
     return parseCart(result?.data?.cart);
   }
 
+  // Redeems a real Shopify discount code (created in Shopify Admin →
+  // Discounts) against the live cart. Shopify itself decides whether the
+  // code is valid/applicable — we never compute a discount client-side.
+  async function applyShopifyDiscountCode(cartId, code) {
+    const result = await shopifyGraphQL(
+      `mutation($cartId: ID!, $codes: [String!]!) { cartDiscountCodesUpdate(cartId: $cartId, discountCodes: $codes) { cart { ${CART_FIELDS} } userErrors { field message } } }`,
+      { cartId, codes: [code] }
+    );
+    const errors = result?.data?.cartDiscountCodesUpdate?.userErrors;
+    if (errors && errors.length) throw new Error(errors.map((e) => e.message).join(', '));
+    return parseCart(result?.data?.cartDiscountCodesUpdate?.cart);
+  }
+
+  async function removeShopifyDiscountCode(cartId) {
+    const result = await shopifyGraphQL(
+      `mutation($cartId: ID!) { cartDiscountCodesUpdate(cartId: $cartId, discountCodes: []) { cart { ${CART_FIELDS} } userErrors { field message } } }`,
+      { cartId }
+    );
+    const errors = result?.data?.cartDiscountCodesUpdate?.userErrors;
+    if (errors && errors.length) throw new Error(errors.map((e) => e.message).join(', '));
+    return parseCart(result?.data?.cartDiscountCodesUpdate?.cart);
+  }
+
   const Shopify = {
     PRODUCTS: SHOPIFY_PRODUCTS,
     fetchVariants: fetchShopifyVariants,
@@ -435,6 +460,8 @@
     removeCartLine: removeShopifyCartLine,
     updateCartLine: updateShopifyCartLine,
     getCart: fetchShopifyCart,
+    applyDiscountCode: applyShopifyDiscountCode,
+    removeDiscountCode: removeShopifyDiscountCode,
   };
 
   window.LowWearData = {

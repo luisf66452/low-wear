@@ -69,6 +69,19 @@
     renderCart();
   }
 
+  async function applyCouponCode(code) {
+    if (!shopifyCart || !shopifyCart.id) throw new Error('empty-cart');
+    shopifyCart = await LWD.Shopify.applyDiscountCode(shopifyCart.id, code);
+    renderCart();
+    return shopifyCart;
+  }
+
+  async function removeCouponCode() {
+    if (!shopifyCart || !shopifyCart.id) return;
+    shopifyCart = await LWD.Shopify.removeDiscountCode(shopifyCart.id);
+    renderCart();
+  }
+
   /* ---------------- toast ---------------- */
   const toast = $('#toast');
   let toastTimer;
@@ -234,11 +247,61 @@
 
     const totalsEl = $('#drawer-totals');
     if (totalsEl) {
-      totalsEl.innerHTML = `<div class="drawer-subtotal"><span>Total</span><strong>${euro(shopifyCart.total)}</strong></div>`;
+      // cart.cost.subtotalAmount is already computed *after* discounts (both
+      // automatic and code-based), so it always equals totalAmount — the
+      // undiscounted total has to be rebuilt from each line's per-unit price.
+      const originalTotal = lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
+      const savings = originalTotal - shopifyCart.total;
+      totalsEl.innerHTML = savings > 0.004
+        ? `<div class="drawer-subtotal drawer-subtotal-crossed"><span>Subtotal</span><span>${euro(originalTotal)}</span></div>
+           <div class="drawer-subtotal drawer-subtotal-discount"><span>Desconto</span><span>−${euro(savings)}</span></div>
+           <div class="drawer-subtotal"><span>Total</span><strong>${euro(shopifyCart.total)}</strong></div>`
+        : `<div class="drawer-subtotal"><span>Total</span><strong>${euro(shopifyCart.total)}</strong></div>`;
     }
+    renderCouponUI();
     renderPromoProgress(lines);
     updateCounts();
   }
+
+  function renderCouponUI() {
+    const msgEl = $('#cart-coupon-msg');
+    const inputEl = $('#cart-coupon-input');
+    if (!msgEl) return;
+    const active = (shopifyCart?.discountCodes || []).find((d) => d.applicable);
+    if (active) {
+      msgEl.innerHTML = `<span class="coupon-ok">Código "${active.code}" aplicado.</span> <button type="button" class="coupon-remove" id="cart-coupon-remove">Remover</button>`;
+      if (inputEl) inputEl.value = '';
+    } else {
+      const invalid = (shopifyCart?.discountCodes || []).find((d) => !d.applicable);
+      msgEl.innerHTML = invalid ? `<span class="coupon-error">Código "${invalid.code}" inválido ou não aplicável a este carrinho.</span>` : '';
+    }
+  }
+
+  $('#cart-coupon-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = $('#cart-coupon-input');
+    const code = input?.value.trim();
+    if (!code) return;
+    if (!shopifyCart || !shopifyCart.lines?.length) {
+      const msgEl = $('#cart-coupon-msg');
+      if (msgEl) msgEl.innerHTML = `<span class="coupon-error">Adicione produtos ao carrinho antes de aplicar um código.</span>`;
+      return;
+    }
+    const btn = $('#cart-coupon-btn');
+    if (btn) btn.disabled = true;
+    try {
+      await applyCouponCode(code);
+    } catch {
+      const msgEl = $('#cart-coupon-msg');
+      if (msgEl) msgEl.innerHTML = `<span class="coupon-error">Não foi possível aplicar este código. Tente novamente.</span>`;
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  });
+
+  $('#drawer-foot')?.addEventListener('click', async (e) => {
+    if (e.target.id === 'cart-coupon-remove') await removeCouponCode();
+  });
 
   $('#drawer-body')?.addEventListener('click', async (e) => {
     const line = e.target.closest('.cart-line');

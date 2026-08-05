@@ -754,6 +754,22 @@ body.no-hero .site-header{
 .drawer-foot{ border-top:1px solid var(--line); padding:20px 24px 26px; }
 .drawer-subtotal{ display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:14px; margin-bottom:16px; }
 .drawer-subtotal strong{ font-size:18px; }
+.drawer-subtotal-crossed span:last-child{ text-decoration:line-through; color:var(--muted); }
+.drawer-subtotal-discount{ color:var(--promo-neon, #3CFF6B); }
+
+.cart-coupon-form{ display:flex; gap:8px; margin-bottom:10px; }
+.cart-coupon-form input{
+  flex:1; min-width:0; border:1px solid var(--line); background:transparent; color:var(--ink);
+  padding:10px 12px; font-family:var(--font-mono); font-size:12px; letter-spacing:.02em;
+}
+.cart-coupon-form input:focus{ outline:none; border-color:var(--ink); }
+.cart-coupon-form .btn-sm{ flex-shrink:0; }
+.cart-coupon-msg{ font-family:var(--font-mono); font-size:11px; margin-bottom:14px; min-height:14px; }
+.cart-coupon-msg:empty{ margin-bottom:0; }
+.coupon-ok{ color:var(--promo-neon, #3CFF6B); }
+.coupon-error{ color:var(--danger); }
+.coupon-remove{ background:none; border:none; text-decoration:underline; color:var(--muted); cursor:pointer; font-family:var(--font-mono); font-size:11px; padding:0; margin-left:4px; }
+.coupon-remove:hover{ color:var(--ink); }
 
 .search-panel{
   position:fixed; top:0; left:0; right:0; z-index:95;

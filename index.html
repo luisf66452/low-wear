@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=35">
+<link rel="stylesheet" href="css/style.css?v=36">
 <!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "c29fdf9a79b44d268ce283fa1ff48e87"}'></script><!-- End Cloudflare Web Analytics -->
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="img/favicon/favicon-32.png">
@@ -427,6 +427,11 @@
   <div id="cart-promo-progress" class="cart-promo-progress"></div>
   <div class="drawer-body" id="drawer-body"></div>
   <div class="drawer-foot" id="drawer-foot">
+    <form id="cart-coupon-form" class="cart-coupon-form">
+      <input type="text" id="cart-coupon-input" placeholder="Código de desconto" autocomplete="off">
+      <button type="submit" class="btn btn-ghost btn-sm" id="cart-coupon-btn">Aplicar</button>
+    </form>
+    <div id="cart-coupon-msg" class="cart-coupon-msg" role="status"></div>
     <div id="drawer-totals"></div>
     <a href="#" class="btn btn-primary btn-block" id="checkout-btn">Finalizar compra</a>
   </div>
@@ -1111,8 +1116,8 @@
 <div id="flash-popup-root"></div>
 <div id="promo-popup-root"></div>
 
-<script src="js/data.js?v=61"></script>
-<script src="js/main.js?v=43"></script>
+<script src="js/data.js?v=62"></script>
+<script src="js/main.js?v=45"></script>
 <script src="js/flash-offer.js?v=5"></script>
 <script src="js/promo.js?v=1"></script>
 </body>
