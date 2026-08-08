@@ -741,35 +741,43 @@
     }));
 
     const spinFrames = (p.spin && p.spin.length > 1) ? p.spin : null;
+    const spinSlider = $('#spin-slider');
+    const spinTrack = $('#spin-slider-track');
+    const spinFill = $('#spin-slider-fill');
+    const spinHandle = $('#spin-slider-handle');
     if (spinFrames) {
       mainOuter.classList.add('has-spin');
       if (zoomHint) zoomHint.style.display = 'none';
       if (spinHint) spinHint.style.display = 'flex';
+      if (spinSlider) spinSlider.style.display = 'block';
       let frameIndex = 0;
-      let dragStartX = 0;
-      let dragStartIndex = 0;
-      let dragging = false;
-      let dragMoved = 0;
+      const lastIndex = spinFrames.length - 1;
       const setFrame = (i) => {
-        frameIndex = ((i % spinFrames.length) + spinFrames.length) % spinFrames.length;
+        frameIndex = Math.min(lastIndex, Math.max(0, i));
         mainEl.innerHTML = `<img src="${spinFrames[frameIndex]}" alt="${LWD.fullName(p)} — ângulo ${frameIndex + 1}">`;
+        const pct = (frameIndex / lastIndex) * 100;
+        if (spinFill) spinFill.style.width = `${pct}%`;
+        if (spinHandle) spinHandle.style.left = `${pct}%`;
       };
-      mainOuter.addEventListener('pointerdown', (e) => {
-        dragging = true; dragMoved = 0;
-        dragStartX = e.clientX; dragStartIndex = frameIndex;
-        mainOuter.classList.add('is-dragging');
-        mainOuter.setPointerCapture(e.pointerId);
+      setFrame(0);
+      // Posição da bolinha na linha (0–100%) mapeia diretamente para o
+      // frame do spin — arrastar em qualquer ponto da linha ou da bolinha
+      // faz o mesmo efeito.
+      const setFromClientX = (clientX) => {
+        const rect = spinTrack.getBoundingClientRect();
+        const ratio = rect.width ? (clientX - rect.left) / rect.width : 0;
+        setFrame(Math.round(Math.min(1, Math.max(0, ratio)) * lastIndex));
+      };
+      let dragging = false;
+      spinTrack?.addEventListener('pointerdown', (e) => {
+        dragging = true;
+        spinTrack.setPointerCapture(e.pointerId);
+        setFromClientX(e.clientX);
       });
-      const pxPerFrame = Math.max(320 / spinFrames.length, 8);
-      mainOuter.addEventListener('pointermove', (e) => {
-        if (!dragging) return;
-        const dx = e.clientX - dragStartX;
-        dragMoved = Math.abs(dx);
-        setFrame(dragStartIndex - Math.round(dx / pxPerFrame));
-      });
-      mainOuter.addEventListener('pointerup', () => { dragging = false; mainOuter.classList.remove('is-dragging'); });
-      mainOuter.addEventListener('pointerleave', () => { dragging = false; mainOuter.classList.remove('is-dragging'); });
+      spinTrack?.addEventListener('pointermove', (e) => { if (dragging) setFromClientX(e.clientX); });
+      spinTrack?.addEventListener('pointerup', () => { dragging = false; });
     } else {
+      if (spinSlider) spinSlider.style.display = 'none';
       mainOuter.addEventListener('click', () => mainOuter.classList.toggle('is-zoomed'));
     }
 
