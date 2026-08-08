@@ -159,27 +159,27 @@
 
     // Seleção Portugal
     P('por-alt-24', 'selecao-portugal', 'alternativa', 'Azul de Portugal', '2024', 49.9, ['S','M','L'], 'Novo', 'disponivel', '#7fd9c4', '#0b4a41',
-      { photos: ['img/selecao-portugal-alt.png?v=2'] }),
+      { photos: ['img/selecao-portugal-alt.png?v=3'] }),
     P('por-principal-24', 'selecao-portugal', 'principal', 'Vermelha de Portugal', '2024', 52.9, ['S','M','L'], 'Novo', 'disponivel', '#a01414', '#f4f3ec',
-      { photos: ['img/selecao-portugal-principal.png?v=2'] }),
+      { photos: ['img/selecao-portugal-principal.png?v=3'] }),
 
     // Benfica
     P('ben-principal-24', 'benfica', 'principal', 'Classica do Benfica', '2024', 49.9, ['S','M','L'], 'Novo', 'disponivel', '#d4001f', '#f4f3ec',
-      { photos: ['img/benfica-principal.png'] }),
+      { photos: ['img/benfica-principal.png?v=2'] }),
     P('ben-extra-24', 'benfica', 'extra', 'Diferenciada do Benfica', '2024', 50.9, ['S','M','L'], null, 'disponivel', '#f4f3ec', '#d4001f',
-      { photos: ['img/benfica-extra.png?v=2'] }),
+      { photos: ['img/benfica-extra.png?v=3'] }),
 
     // Sporting
     P('spo-principal-24', 'sporting', 'principal', 'Classica do Sporting', '2024', 53.9, ['S','M','L'], 'Novo', 'disponivel', '#0d5c34', '#f4f3ec',
-      { photos: ['img/sporting-principal.png?v=2'] }),
+      { photos: ['img/sporting-principal.png?v=3'] }),
     P('spo-alt-24', 'sporting', 'alternativa', 'Branca do Sporting', '2024', 53.9, ['S','M','L'], null, 'disponivel', '#f4f3ec', '#0d5c34',
-      { photos: ['img/sporting-alt.png?v=2'] }),
+      { photos: ['img/sporting-alt.png?v=3'] }),
 
     // FC Porto
     P('fcp-principal-24', 'porto', 'principal', 'Classica do Porto', '2024', 52.9, ['S','M','L'], 'Novo', 'disponivel', '#0b3d91', '#f4f3ec',
-      { photos: ['img/porto-principal.png'] }),
+      { photos: ['img/porto-principal.png?v=2'] }),
     P('fcp-extra-24', 'porto', 'extra', 'Diferenciada do Porto', '2024', 49.9, ['S','M','L'], null, 'disponivel', '#f4f3ec', '#0b3d91',
-      { photos: ['img/porto-extra.png'] }),
+      { photos: ['img/porto-extra.png?v=2'] }),
   ];
 
   // "Camisa mais procurada" — escolha automática que muda uma vez por
