@@ -549,6 +549,26 @@
     wireProductGrid(container);
   }
 
+  /* ---------------- Futebol Português ----------------
+     Separate section, not mixed into the Brazilian catalog/featured
+     grids. Pulls every product whose team has country:'PT' (see
+     TEAMS in js/data.js), so adding Benfica/Sporting/Porto later is
+     just adding their team + products there — nothing here to touch.
+     The whole section hides itself if no PT product exists yet. */
+  function renderPortugalSection() {
+    const section = $('#futebol-portugues');
+    const grid = $('#pt-grid');
+    const strip = $('#pt-teaser-strip');
+    if (!section || !grid) return;
+    const ptTeamSlugs = LWD.TEAMS.filter(t => t.country === 'PT').map(t => t.slug);
+    const products = LWD.PRODUCTS.filter(p => ptTeamSlugs.includes(p.teamSlug));
+    if (!products.length) { section.hidden = true; if (strip) strip.hidden = true; return; }
+    section.hidden = false;
+    if (strip) strip.hidden = false;
+    grid.innerHTML = products.map(productCardHTML).join('');
+    wireProductGrid(grid);
+  }
+
   /* ---------------- search ---------------- */
   const searchInput = $('#search-input');
   const searchResults = $('#search-results');
@@ -854,6 +874,7 @@
   /* ---------------- boot ---------------- */
   renderTeamGrid($('#team-grid'));
   renderFeatured($('#featured-grid'));
+  renderPortugalSection();
   if ($('#catalog-grid')) renderCatalog();
   initTeamPage();
   initProductPage();

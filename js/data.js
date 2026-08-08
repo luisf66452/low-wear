@@ -2,50 +2,54 @@
 (() => {
   const TEAMS = [
     {
-      slug: 'selecao', name: 'Seleção Brasileira', short: 'Seleção',
+      slug: 'selecao', name: 'Seleção Brasileira', short: 'Seleção', country: 'BR',
       main: '#f6d21e', trim: '#0b3d2e',
       tagline: 'Seleção Brasileira — Vista o penta',
       text: 'Modelos escolhidos para quem canta o hino antes de qualquer jogo e leva o Brasil para onde for.',
     },
     {
-      slug: 'flamengo', name: 'Flamengo', short: 'Mengão',
+      slug: 'flamengo', name: 'Flamengo', short: 'Mengão', country: 'BR',
       main: '#a2110a', trim: '#121212',
       tagline: 'Flamengo — Vista o rubro-negro',
       text: 'Modelos escolhidos para quem leva o Flamengo no peito, no estádio e na rua.',
     },
     {
-      slug: 'corinthians', name: 'Corinthians', short: 'Timão',
+      slug: 'corinthians', name: 'Corinthians', short: 'Timão', country: 'BR',
       main: '#f4f3ec', trim: '#121212',
       tagline: 'Corinthians — Vista o Timão',
       text: 'Modelos para a Fiel que enche estádios e não abre mão das suas cores.',
     },
     {
-      slug: 'sao-paulo', name: 'São Paulo', short: 'Tricolor',
+      slug: 'sao-paulo', name: 'São Paulo', short: 'Tricolor', country: 'BR',
       main: '#f4f3ec', trim: '#a2110a',
       tagline: 'São Paulo — Vista o Tricolor',
       text: 'Modelos para quem carrega a tradição do Morumbi em cada detalhe.',
     },
     {
-      slug: 'palmeiras', name: 'Palmeiras', short: 'Verdão',
+      slug: 'palmeiras', name: 'Palmeiras', short: 'Verdão', country: 'BR',
       main: '#0b6e2c', trim: '#f4f3ec',
       tagline: 'Palmeiras — Vista o Verdão',
       text: 'Modelos para a maior torcida do alviverde, dentro e fora da Academia.',
     },
     {
-      slug: 'santos', name: 'Santos', short: 'Peixe',
+      slug: 'santos', name: 'Santos', short: 'Peixe', country: 'BR',
       main: '#f4f3ec', trim: '#121212',
       tagline: 'Santos — Vista o Peixe',
       text: 'Modelos para quem carrega o legado do Rei do Futebol na Vila Belmiro.',
     },
     {
-      slug: 'cruzeiro', name: 'Cruzeiro', short: 'Raposa',
+      slug: 'cruzeiro', name: 'Cruzeiro', short: 'Raposa', country: 'BR',
       main: '#0b3da0', trim: '#f4f3ec',
       tagline: 'Cruzeiro — Vista a Raposa',
       text: 'Modelos para a Cabulosa que nunca deixou de acreditar.',
     },
     // Futebol português — secção adicional, à parte do catálogo brasileiro.
+    // country:'PT' marca as equipas mostradas na secção "Futebol Português"
+    // da homepage (ver #futebol-portugues em index.html / renderPortugalSection
+    // em main.js): basta dar este country a uma nova equipa (Benfica, Sporting,
+    // Porto…) e ela aparece lá automaticamente, sem tocar em mais nada.
     {
-      slug: 'selecao-portugal', name: 'Seleção Portugal', short: 'Seleção PT',
+      slug: 'selecao-portugal', name: 'Seleção Portugal', short: 'Seleção PT', country: 'PT',
       main: '#7fd9c4', trim: '#0b4a41',
       tagline: 'Seleção Portugal — Vista as quinas',
       text: 'Modelos para quem veste as cores de Portugal com orgulho, dentro e fora do estádio.',

@@ -95,6 +95,19 @@ h1,h2,h3,h4,p{ margin:0; }
   text-transform:uppercase;
 }
 .section-head .section-sub{ color:var(--muted); max-width:44ch; font-size:14.5px; }
+
+/* Futebol Português — secção e faixa de descoberta, à parte do catálogo
+   brasileiro. Acento verde/vermelho sutil só para diferenciar visualmente. */
+.pt-teaser-strip{
+  border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+  background:linear-gradient(90deg, rgba(15,88,60,.12), rgba(160,20,20,.10));
+}
+.pt-teaser-inner{
+  display:flex; align-items:center; justify-content:center; gap:18px;
+  flex-wrap:wrap; padding:14px 24px; text-align:center;
+}
+.pt-teaser-text{ font-family:var(--font-mono); font-size:12.5px; letter-spacing:.02em; }
+.section-head-pt h2{ background:linear-gradient(90deg,#0f583c,#a01414); -webkit-background-clip:text; background-clip:text; color:transparent; }
 .section-link{
   font-family:var(--font-mono);
   font-size:12px;
