@@ -43,6 +43,13 @@
       tagline: 'Cruzeiro — Vista a Raposa',
       text: 'Modelos para a Cabulosa que nunca deixou de acreditar.',
     },
+    // Futebol português — secção adicional, à parte do catálogo brasileiro.
+    {
+      slug: 'selecao-portugal', name: 'Seleção Portugal', short: 'Seleção PT',
+      main: '#7fd9c4', trim: '#0b4a41',
+      tagline: 'Seleção Portugal — Vista as quinas',
+      text: 'Modelos para quem veste as cores de Portugal com orgulho, dentro e fora do estádio.',
+    },
   ];
 
   const TYPE_LABEL = {
@@ -127,6 +134,10 @@
     P('cru-alt-24', 'cruzeiro', 'alternativa', 'Manto Celeste Branco', '2024', 54.9, ['S','M','L'], 'Mais vendido', 'disponivel', '#f4f3ec', '#0b3da0',
       { photos: ['img/spin/cruzeiro-alt/01.png'],
         spin: Array.from({length: 24}, (_, i) => `img/spin/cruzeiro-alt/${String(i + 1).padStart(2, '0')}.png`) }),
+
+    // Seleção Portugal
+    P('por-alt-24', 'selecao-portugal', 'alternativa', 'Azul de Portugal', '2024', 49.9, ['S','M','L'], 'Novo', 'disponivel', '#7fd9c4', '#0b4a41',
+      { photos: ['img/selecao-portugal-alt.png'] }),
   ];
 
   const FEATURED_IDS = [
@@ -232,6 +243,7 @@
     'santos-extra-24': { shopifyProductId: '16381723050333' },
     'cru-principal-24': { shopifyProductId: '16381724131677' },
     'cru-alt-24': { shopifyProductId: '16381724328285' },
+    'por-alt-24': { shopifyProductId: '16399668969821' },
   };
 
   /* ---------------- Shopify Storefront API ---------------- */
