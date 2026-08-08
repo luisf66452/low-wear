@@ -108,6 +108,12 @@ h1,h2,h3,h4,p{ margin:0; }
 }
 .pt-teaser-text{ font-family:var(--font-mono); font-size:12.5px; letter-spacing:.02em; }
 .section-head-pt h2{ background:linear-gradient(90deg,#0f583c,#a01414); -webkit-background-clip:text; background-clip:text; color:transparent; }
+
+/* Catálogo Brasileiro — gradiente verde / amarelo / azul (bandeira BR) */
+.heading-br-gradient{
+  background:linear-gradient(90deg,#0b6e2c,#f6d21e,#0b3da0);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
 .section-link{
   font-family:var(--font-mono);
   font-size:12px;

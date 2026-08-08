@@ -520,6 +520,10 @@
       disponibilidade: $('#f-disponibilidade')?.value || '',
     };
     const results = LWD.PRODUCTS.filter(p => {
+      // "Catálogo completo" agora é o catálogo brasileiro — o futebol
+      // português vive só na secção #futebol-portugues (ver country:'PT').
+      const team = LWD.getTeam(p.teamSlug);
+      if (team && team.country === 'PT') return false;
       if (vals.equipa && p.teamSlug !== vals.equipa) return false;
       if (vals.tipo && p.type !== vals.tipo) return false;
       if (vals.temporada && p.season !== vals.temporada) return false;
