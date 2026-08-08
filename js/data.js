@@ -54,6 +54,24 @@
       tagline: 'Seleção Portugal — Vista as quinas',
       text: 'Modelos para quem veste as cores de Portugal com orgulho, dentro e fora do estádio.',
     },
+    {
+      slug: 'benfica', name: 'Benfica', short: 'Águias', country: 'PT',
+      main: '#d4001f', trim: '#f4f3ec',
+      tagline: 'Benfica — Vista as Águias',
+      text: 'Modelos para quem veste o encarnado do Benfica com orgulho, na Luz e por todo o país.',
+    },
+    {
+      slug: 'sporting', name: 'Sporting', short: 'Leões', country: 'PT',
+      main: '#0d5c34', trim: '#f4f3ec',
+      tagline: 'Sporting — Vista os Leões',
+      text: 'Modelos para quem carrega o verde e branco do Sporting para todo o lado.',
+    },
+    {
+      slug: 'porto', name: 'FC Porto', short: 'Dragões', country: 'PT',
+      main: '#0b3d91', trim: '#f4f3ec',
+      tagline: 'FC Porto — Vista os Dragões',
+      text: 'Modelos para quem veste o azul e branco do FC Porto com paixão.',
+    },
   ];
 
   const TYPE_LABEL = {
@@ -142,6 +160,26 @@
     // Seleção Portugal
     P('por-alt-24', 'selecao-portugal', 'alternativa', 'Azul de Portugal', '2024', 49.9, ['S','M','L'], 'Novo', 'disponivel', '#7fd9c4', '#0b4a41',
       { photos: ['img/selecao-portugal-alt.png'] }),
+    P('por-principal-24', 'selecao-portugal', 'principal', 'Vermelha de Portugal', '2024', 52.9, ['S','M','L'], 'Novo', 'disponivel', '#a01414', '#f4f3ec',
+      { photos: ['img/selecao-portugal-principal.png'] }),
+
+    // Benfica
+    P('ben-principal-24', 'benfica', 'principal', 'Classica do Benfica', '2024', 49.9, ['S','M','L'], 'Novo', 'disponivel', '#d4001f', '#f4f3ec',
+      { photos: ['img/benfica-principal.png'] }),
+    P('ben-extra-24', 'benfica', 'extra', 'Diferenciada do Benfica', '2024', 50.9, ['S','M','L'], null, 'disponivel', '#f4f3ec', '#d4001f',
+      { photos: ['img/benfica-extra.png'] }),
+
+    // Sporting
+    P('spo-principal-24', 'sporting', 'principal', 'Classica do Sporting', '2024', 53.9, ['S','M','L'], 'Novo', 'disponivel', '#0d5c34', '#f4f3ec',
+      { photos: ['img/sporting-principal.png'] }),
+    P('spo-alt-24', 'sporting', 'alternativa', 'Branca do Sporting', '2024', 53.9, ['S','M','L'], null, 'disponivel', '#f4f3ec', '#0d5c34',
+      { photos: ['img/sporting-alt.png'] }),
+
+    // FC Porto
+    P('fcp-principal-24', 'porto', 'principal', 'Classica do Porto', '2024', 52.9, ['S','M','L'], 'Novo', 'disponivel', '#0b3d91', '#f4f3ec',
+      { photos: ['img/porto-principal.png'] }),
+    P('fcp-extra-24', 'porto', 'extra', 'Diferenciada do Porto', '2024', 49.9, ['S','M','L'], null, 'disponivel', '#f4f3ec', '#0b3d91',
+      { photos: ['img/porto-extra.png'] }),
   ];
 
   const FEATURED_IDS = [
@@ -248,6 +286,13 @@
     'cru-principal-24': { shopifyProductId: '16381724131677' },
     'cru-alt-24': { shopifyProductId: '16381724328285' },
     'por-alt-24': { shopifyProductId: '16399668969821' },
+    'por-principal-24': { shopifyProductId: '16399700427101' },
+    'ben-principal-24': { shopifyProductId: '16399717335389' },
+    'ben-extra-24': { shopifyProductId: '16399721202013' },
+    'spo-alt-24': { shopifyProductId: '16399729262941' },
+    'spo-principal-24': { shopifyProductId: '16399734440285' },
+    'fcp-principal-24': { shopifyProductId: '16399739027805' },
+    'fcp-extra-24': { shopifyProductId: '16399744172381' },
   };
 
   /* ---------------- Shopify Storefront API ---------------- */
