@@ -532,6 +532,8 @@ body.no-hero .site-header{
 /* ============================================================
    Product grid & card
    ============================================================ */
+.spotlight-grid{ grid-template-columns:minmax(0,360px) !important; justify-content:center; max-width:360px; margin:0 auto; }
+
 .product-grid{
   display:grid;
   grid-template-columns:repeat(4,1fr);

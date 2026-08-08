@@ -182,10 +182,27 @@
       { photos: ['img/porto-extra.png'] }),
   ];
 
-  const FEATURED_IDS = [
-    'sel-principal-24', 'fla-principal-24', 'cor-principal-24', 'sao-principal-24',
-    'pal-principal-24', 'santos-principal-24', 'cru-principal-24',
-  ];
+  // "Camisa mais procurada" — escolha automática que muda uma vez por
+  // semana. A semana ISO (ano+número da semana) alimenta um hash simples,
+  // por isso o produto escolhido parece aleatório mas é o MESMO para toda
+  // a gente durante a semana toda, e muda sozinho na semana seguinte sem
+  // precisar de intervenção manual.
+  function isoWeekKey(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const day = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - day);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const week = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return d.getUTCFullYear() * 100 + week;
+  }
+  function weeklyFeaturedProduct() {
+    if (!PRODUCTS.length) return null;
+    let h = isoWeekKey(new Date());
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    h = (h ^ (h >>> 16)) >>> 0;
+    return PRODUCTS[h % PRODUCTS.length];
+  }
 
   function euro(n) {
     return n.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
@@ -526,8 +543,9 @@
   };
 
   window.LowWearData = {
-    TEAMS, PRODUCTS, TYPE_LABEL, FEATURED_IDS, SHOPIFY_PRODUCTS, Shopify,
+    TEAMS, PRODUCTS, TYPE_LABEL, SHOPIFY_PRODUCTS, Shopify,
     euro, getTeam, getProduct, getProductsByTeam, fullName, jerseySVG, productMedia, productGallery,
+    weeklyFeaturedProduct,
     PROMO_CONFIG, isPromoActive, isPromoEligible,
   };
 })();

@@ -545,11 +545,16 @@
 
   $$('.filter-bar select').forEach(s => s.addEventListener('change', renderCatalog));
 
-  /* ---------------- featured ---------------- */
-  function renderFeatured(container) {
+  /* ---------------- camisa mais procurada (rotação semanal) ----------------
+     Um único produto, escolhido automaticamente por LWD.weeklyFeaturedProduct()
+     — mesma camisa para todos os visitantes durante a semana toda, muda
+     sozinha na semana seguinte. Reaproveita productCardHTML para manter
+     favoritos/tamanhos/link "Ver produto" idênticos ao resto do site. */
+  function renderWeeklySpotlight(container) {
     if (!container) return;
-    const products = LWD.FEATURED_IDS.map(id => LWD.getProduct(id)).filter(Boolean);
-    container.innerHTML = products.map(productCardHTML).join('');
+    const p = LWD.weeklyFeaturedProduct();
+    if (!p) return;
+    container.innerHTML = productCardHTML(p, 0);
     wireProductGrid(container);
   }
 
@@ -601,7 +606,7 @@
     document.querySelector('#catalogo')?.scrollIntoView({ behavior: 'smooth' });
   }));
   $$('.js-scroll-featured').forEach(a => a.addEventListener('click', (e) => {
-    if (!$('#featured-grid')) return;
+    if (!$('#spotlight-grid')) return;
     e.preventDefault();
     document.querySelector('#mais-procuradas')?.scrollIntoView({ behavior: 'smooth' });
   }));
@@ -877,7 +882,7 @@
 
   /* ---------------- boot ---------------- */
   renderTeamGrid($('#team-grid'));
-  renderFeatured($('#featured-grid'));
+  renderWeeklySpotlight($('#spotlight-grid'));
   renderPortugalSection();
   if ($('#catalog-grid')) renderCatalog();
   initTeamPage();
